@@ -3,7 +3,6 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Sheep } from "../types";
 
 // Função para obter o cliente sempre com a chave mais recente do ambiente
-// Fix: Use process.env.API_KEY directly in the named parameter as required.
 const getAIClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 };
@@ -21,18 +20,18 @@ const handleAIError = (error: any): string => {
   }
 
   if (!process.env.API_KEY) {
-    return "⚠️ CONFIGURAÇÃO PENDENTE: A variável de ambiente API_KEY não foi encontrada.";
+    return "⚠️ CONFIGURAÇÃO PENDENTE: A variável de ambiente API_KEY não foi encontrada nas configurações do Vercel.";
   }
 
   if (errorMessage.includes("API key not valid") || 
       errorMessage.includes("INVALID_ARGUMENT") || 
       errorMessage.includes("400") ||
       errorMessage.includes("API_KEY_INVALID")) {
-    return "❌ CHAVE INVÁLIDA: O Google recusou sua chave.";
+    return "❌ CHAVE INVÁLIDA: O Google recusou sua chave. Verifique se copiou corretamente no Vercel.";
   }
 
-  if (errorMessage.includes("429") || errorMessage.includes("quota")) {
-    return "⏳ LIMITE ATINGIDO: Sua cota gratuita do Gemini expirou.";
+  if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("limit")) {
+    return "⏳ LIMITE ATINGIDO: Sua cota gratuita do Gemini expirou para este minuto ou dia. Tente novamente em instantes.";
   }
 
   return `Ops! Erro técnico: ${errorMessage.substring(0, 50)}...`;
@@ -54,7 +53,6 @@ export const getSheepInsight = async (sheep: Sheep, breedName: string) => {
       Lembre-se: se for macho, o foco é em qualidade seminal e porte; se fêmea, foco em escore para reprodução/amamentação.
     `;
 
-    // Fix: Updated model selection and content structure.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview", 
       contents: prompt,
@@ -85,9 +83,9 @@ export const getHerdDailyInsights = async (herd: any[]) => {
       Dados: ${JSON.stringify(herd)}
     `;
     
-    // Fix: Using gemini-3-pro-preview for complex reasoning task as per guidelines.
+    // Mudança para gemini-3-flash-preview para economizar cota e evitar erro 429
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -119,14 +117,18 @@ export const getHerdDailyInsights = async (herd: any[]) => {
     return JSON.parse(response.text || '{"insights": []}').insights || [];
   } catch (error: any) {
     console.error("Erro nos insights:", error);
+    const errorMsg = handleAIError(error);
     return [{
       prioridade: 'alta',
       categoria: 'SISTEMA',
-      titulo: 'Erro de Conexão IA',
-      descricao: handleAIError(error),
-      fundamentacao: "Houve um erro técnico ao tentar conectar com os servidores do Google Gemini. Verifique sua chave de API e conexão de internet.",
-      alvos: ['ERRO'],
-      fonte: 'Diagnóstico'
+      titulo: 'Limite de IA Atingido',
+      descricao: errorMsg,
+      fundamentacao: "O Google Gemini possui limites de requisições por minuto no plano gratuito. " + 
+                     "Isso acontece geralmente quando o rebanho é grande ou muitas análises são solicitadas ao mesmo tempo. " +
+                     "\n\nCOMO RESOLVER:\n1. Aguarde 1 minuto e clique no botão 'Sincronizar' no Dashboard.\n" +
+                     "2. Se o erro persistir, considere criar uma nova chave de API no Google AI Studio.",
+      alvos: ['INFO'],
+      fonte: 'Diagnóstico de Sistema'
     }];
   }
 };
@@ -134,7 +136,6 @@ export const getHerdDailyInsights = async (herd: any[]) => {
 export const askKnowledgeAssistant = async (question: string) => {
   try {
     const ai = getAIClient();
-    // Fix: Updated content structure for generateContent call.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Responda como um consultor especializado em ovinocultura brasileira: ${question}`,
@@ -148,7 +149,6 @@ export const askKnowledgeAssistant = async (question: string) => {
 export const getSpeechForText = async (text: string) => {
   try {
     const ai = getAIClient();
-    // Fix: Specified correct model name for TTS as per guidelines.
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
@@ -168,7 +168,6 @@ export const generateAppLogo = async () => {
     const ai = getAIClient();
     const prompt = "A modern and professional logo for 'OviManager', a sheep farming management application. The design should combine a stylized minimalist sheep head with subtle technological elements like digital circuit lines or nodes. Flat design, clean lines, professional branding. Color palette: Emerald Green and Slate Blue. White background, high quality, vector style.";
     
-    // Fix: Using gemini-2.5-flash-image for standard image generation tasks.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
