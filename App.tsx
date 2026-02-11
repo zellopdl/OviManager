@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import ChartsView from './components/ChartsView';
@@ -284,7 +285,7 @@ const App: React.FC = () => {
 
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-lg font-black text-slate-800 mb-4 uppercase tracking-tight flex items-center gap-2">
-                  <span className="text-base">🔑</span> Credenciais
+                  <span className="text-base">���</span> Credenciais
                 </h3>
                 <div className="space-y-4">
                   <div>
@@ -383,6 +384,7 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      <SpeedInsights />
     </Layout>
   );
 };
