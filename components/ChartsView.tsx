@@ -71,7 +71,8 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, breeds, groups }) => {
 
   // --- DADOS ORIGINAIS ---
   const groupDistributionData = useMemo(() => {
-    const activeSheep = sheep.filter(s => s.status === Status.ATIVO || s.status === 'ativo');
+    // Fix: Removed redundant string comparison that caused type narrowing overlap error
+    const activeSheep = sheep.filter(s => s.status === Status.ATIVO);
     const distribution: Record<string, number> = {};
     activeSheep.forEach(s => {
       const groupName = groups.find(g => g.id === s.grupoId)?.nome || 'SEM LOTE';

@@ -103,7 +103,8 @@ const EntityManager: React.FC<EntityManagerProps> = ({ title, tableName, icon, i
   const openDeleteConfirmation = (item: Entity) => {
     // 1. Verificação de ovelhas ATIVAS (Bloqueio Total)
     const activeSheepList = (sheep || []).filter(s => {
-      const isStatusAtivo = s?.status === 'ativo' || s?.status === Status.ATIVO;
+      // Fix: Removed redundant string comparison that caused type narrowing overlap error
+      const isStatusAtivo = s?.status === Status.ATIVO;
       if (tableName === 'grupos') return s?.grupoId === item.id && isStatusAtivo;
       if (tableName === 'racas') return s?.racaId === item.id && isStatusAtivo;
       return false;

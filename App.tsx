@@ -1,25 +1,25 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import ChartsView from './components/ChartsView';
-import SheepTable from './components/SheepTable';
-import SheepForm from './components/SheepForm';
-import ManejoManager from './components/ManejoManager';
-import KnowledgeAssistant from './components/KnowledgeAssistant';
-import EntityManager from './components/EntityManager';
-import PaddockManager from './components/PaddockManager';
-import SupplierManager from './components/SupplierManager';
-import LogoGenerator from './components/LogoGenerator';
-import WeightManager from './components/WeightManager';
-import ReproductionManager from './components/ReproductionManager';
-import Login from './components/Login';
-import { Sheep, Breed, Supplier, Group, Paddock } from './types';
-import { sheepService } from './services/sheepService';
-import { entityService } from './services/entityService';
-import { getSheepInsight } from './services/geminiService';
-import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { SUPABASE_SCHEMA_SQL } from './constants';
+import Layout from './components/Layout.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import ChartsView from './components/ChartsView.tsx';
+import SheepTable from './components/SheepTable.tsx';
+import SheepForm from './components/SheepForm.tsx';
+import ManejoManager from './components/ManejoManager.tsx';
+import KnowledgeAssistant from './components/KnowledgeAssistant.tsx';
+import EntityManager from './components/EntityManager.tsx';
+import PaddockManager from './components/PaddockManager.tsx';
+import SupplierManager from './components/SupplierManager.tsx';
+import LogoGenerator from './components/LogoGenerator.tsx';
+import WeightManager from './components/WeightManager.tsx';
+import ReproductionManager from './components/ReproductionManager.tsx';
+import Login from './components/Login.tsx';
+import { Sheep, Breed, Supplier, Group, Paddock } from './types.ts';
+import { sheepService } from './services/sheepService.ts';
+import { entityService } from './services/entityService.ts';
+import { getSheepInsight } from './services/geminiService.ts';
+import { supabase, isSupabaseConfigured } from './lib/supabase.ts';
+import { SUPABASE_SCHEMA_SQL } from './constants.tsx';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -36,7 +36,6 @@ const App: React.FC = () => {
   const [analysisText, setAnalysisText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
 
-  // Segurança Interna
   const [managerPassword, setManagerPassword] = useState(() => localStorage.getItem('ovi_manager_pwd') || '1234');
   const [isSettingsUnlocked, setIsSettingsUnlocked] = useState(false);
   const [unlockInput, setUnlockInput] = useState('');
@@ -47,7 +46,6 @@ const App: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [paddocks, setPaddocks] = useState<Paddock[]>([]);
 
-  // Monitorar Autenticação
   useEffect(() => {
     if (isSupabaseConfigured) {
       supabase.auth.getSession().then(({ data: { session } }) => {
@@ -236,7 +234,6 @@ const App: React.FC = () => {
       case 'suppliers': return <SupplierManager initialData={suppliers} onRefresh={loadInitialData} sheep={safeSheep} />;
       case 'settings': return (
         <div className="max-w-2xl mx-auto space-y-6 pb-20">
-          
           {!isSettingsUnlocked ? (
             <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-xl text-center animate-in zoom-in-95 duration-300">
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">🔐</div>
@@ -279,7 +276,6 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Novo Gerador de Logotipo */}
               <LogoGenerator />
 
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">

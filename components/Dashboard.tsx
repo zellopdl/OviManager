@@ -119,16 +119,17 @@ const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds, groups }) => {
 
   const stats: DashboardStats = {
     total: sheep.length,
-    ativos: sheep.filter(s => s.status === 'ativo' || s.status === Status.ATIVO).length,
+    // Fix: Removed redundant string comparison that caused type narrowing overlap error
+    ativos: sheep.filter(s => s.status === Status.ATIVO).length,
     machos: sheep.filter(s => s.sexo === 'macho').length,
     femeas: sheep.filter(s => s.sexo === 'femea').length,
     mediaPeso: sheep.length > 0 ? sheep.reduce((acc, curr) => acc + curr.peso, 0) / sheep.length : 0,
   };
 
   // Cálculo de Ativos por Grupo para o Gráfico
-  // Fix: Added useMemo import to resolve error on line 129
   const activeByGroupData = useMemo(() => {
-    const activeSheep = sheep.filter(s => s.status === 'ativo' || s.status === Status.ATIVO);
+    // Fix: Removed redundant string comparison that caused type narrowing overlap error
+    const activeSheep = sheep.filter(s => s.status === Status.ATIVO);
     const counts: Record<string, number> = {};
     
     activeSheep.forEach(s => {

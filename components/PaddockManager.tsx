@@ -113,7 +113,8 @@ const PaddockManager: React.FC<PaddockManagerProps> = ({ initialData, onRefresh,
   const openDeleteConfirmation = (item: Paddock) => {
     // Verificação de ovelhas ATIVAS (Bloqueio Total)
     const activeSheepList = (sheep || []).filter(s => {
-      const isStatusAtivo = s?.status === 'ativo' || s?.status === Status.ATIVO;
+      // Fix: Removed redundant string comparison that caused type narrowing overlap error
+      const isStatusAtivo = s?.status === Status.ATIVO;
       return s?.piqueteId === item.id && isStatusAtivo;
     });
 
