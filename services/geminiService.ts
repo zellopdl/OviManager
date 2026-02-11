@@ -3,16 +3,9 @@ import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Sheep } from "../types";
 
 // Função para obter o cliente sempre com a chave mais recente do ambiente
+// Fix: Use process.env.API_KEY directly in the named parameter as required.
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY || "";
-  
-  if (!apiKey) {
-    console.warn("⚠️ [OviManager] API_KEY não detectada no ambiente.");
-  } else {
-    console.log(`✅ [OviManager] API_KEY detectada (Inicia com: ${apiKey.substring(0, 4)}...). Tamanho: ${apiKey.length}`);
-  }
-  
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 };
 
 const handleAIError = (error: any): string => {
@@ -61,10 +54,10 @@ export const getSheepInsight = async (sheep: Sheep, breedName: string) => {
       Lembre-se: se for macho, o foco é em qualidade seminal e porte; se fêmea, foco em escore para reprodução/amamentação.
     `;
 
+    // Fix: Updated model selection and content structure.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview", 
-      contents: [{ parts: [{ text: prompt }] }],
-      config: { temperature: 0.7 }
+      contents: prompt,
     });
 
     return response.text;
@@ -92,9 +85,10 @@ export const getHerdDailyInsights = async (herd: any[]) => {
       Dados: ${JSON.stringify(herd)}
     `;
     
+    // Fix: Using gemini-3-pro-preview for complex reasoning task as per guidelines.
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: prompt }] }],
+      model: "gemini-3-pro-preview",
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -140,9 +134,10 @@ export const getHerdDailyInsights = async (herd: any[]) => {
 export const askKnowledgeAssistant = async (question: string) => {
   try {
     const ai = getAIClient();
+    // Fix: Updated content structure for generateContent call.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: `Responda como um consultor especializado em ovinocultura brasileira: ${question}` }] }],
+      contents: `Responda como um consultor especializado em ovinocultura brasileira: ${question}`,
     });
     return response.text;
   } catch (error: any) {
@@ -153,6 +148,7 @@ export const askKnowledgeAssistant = async (question: string) => {
 export const getSpeechForText = async (text: string) => {
   try {
     const ai = getAIClient();
+    // Fix: Specified correct model name for TTS as per guidelines.
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
@@ -172,6 +168,7 @@ export const generateAppLogo = async () => {
     const ai = getAIClient();
     const prompt = "A modern and professional logo for 'OviManager', a sheep farming management application. The design should combine a stylized minimalist sheep head with subtle technological elements like digital circuit lines or nodes. Flat design, clean lines, professional branding. Color palette: Emerald Green and Slate Blue. White background, high quality, vector style.";
     
+    // Fix: Using gemini-2.5-flash-image for standard image generation tasks.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {

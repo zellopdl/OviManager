@@ -1,15 +1,14 @@
 
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3753/3753545.png" />
     
     <link rel="manifest" href="./manifest.json" />
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3753/3753545.png" />
     
     <title>OviManager - Gestão de Ovinocultura</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,11 +19,41 @@
         font-family: 'Inter', sans-serif; 
         -webkit-tap-highlight-color: transparent;
         overscroll-behavior-y: contain;
-        overflow-x: hidden;
       }
       .no-select { user-select: none; -webkit-user-select: none; }
       
-      /* Safe areas para iPhones modernos */
+      /* Elevador (Barra de Rolagem) Interna e Visível */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.02);
+        border-radius: 10px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.8);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      /* INDICADOR DE CURSOR E FOCO GLOBAL (Ajustado para respeitar fundos escuros) */
+      input:focus, select:focus, textarea:focus {
+        outline: none !important;
+        border-color: #10b981 !important; /* emerald-500 */
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+        caret-color: #10b981;
+      }
+
+      /* Fix para iOS e viewports dinâmicos */
+      .h-safe-screen {
+        height: 100vh;
+        height: 100dvh;
+      }
+
       @supports (padding: env(safe-area-inset-bottom)) {
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
@@ -43,7 +72,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-50 text-slate-900">
-    <div id="root"></div>
+  <body class="bg-slate-50 text-slate-900 h-full w-full overflow-x-hidden">
+    <div id="root" class="h-full w-full"></div>
   </body>
 </html>

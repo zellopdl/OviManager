@@ -22,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
 
   const menuItems = [
     { id: 'dashboard', label: 'Início', icon: '📊', category: 'Principal' },
+    { id: 'charts', label: 'Análises', icon: '📈', category: 'Principal' },
     { id: 'sheep', label: 'Rebanho', icon: '🐑', category: 'Principal' },
     { id: 'weight', label: 'Pesagem', icon: '⚖️', category: 'Operacional' },
     { id: 'repro', label: 'Reprodução', icon: '🧬', category: 'Operacional' },
@@ -34,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
     { id: 'settings', label: 'Ajustes', icon: '⚙️', category: 'Sistema' },
   ];
 
-  const bottomTabs = menuItems.filter(item => ['dashboard', 'sheep', 'repro', 'weight'].includes(item.id));
+  const bottomTabs = menuItems.filter(item => ['dashboard', 'charts', 'sheep', 'weight'].includes(item.id));
 
   const handleTabClick = (id: string) => {
     setActiveTab(id);
@@ -48,7 +49,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden flex-col md:flex-row">
+    <div className="flex h-safe-screen w-full bg-slate-50 overflow-hidden flex-col md:flex-row">
       {/* Sidebar - Desktop */}
       <aside 
         className={`hidden md:flex flex-col bg-slate-900 text-white shadow-xl z-20 transition-all duration-300 ease-in-out ${
@@ -86,7 +87,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
                         : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
                     }`}
                   >
-                    <span className={`text-base transition-transform ${isDesktopCollapsed ? 'group-hover:scale-120' : ''}`}>
+                    <span className={`text-base transition-transform group-hover:scale-110 ${isDesktopCollapsed ? '' : ''}`}>
                       {item.icon}
                     </span>
                     {!isDesktopCollapsed && (
@@ -110,7 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
             }`}
           >
             <span className="text-lg">🚪</span>
-            {!isDesktopCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Sair do Sistema</span>}
+            {!isDesktopCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Sair</span>}
           </button>
           
           <button 
@@ -120,17 +121,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
             <span className={`transition-transform duration-300 ${isDesktopCollapsed ? 'rotate-180' : ''}`}>
               {isDesktopCollapsed ? '➡️' : '⬅️'}
             </span>
-            {!isDesktopCollapsed && <span className="ml-3 text-[10px] font-black uppercase tracking-widest">Recolher Menu</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-slate-200 h-14 md:h-16 flex items-center justify-between px-6 md:px-8 shrink-0 sticky top-0 z-10 shadow-sm">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 relative h-full">
+        <header className="bg-white border-b border-slate-200 h-14 md:h-16 flex items-center justify-between px-6 md:px-8 shrink-0 z-20 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="md:hidden w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center text-sm">🐑</div>
-            <h2 className="text-md md:text-lg font-black text-slate-800 capitalize tracking-tight">
+            <h2 className="text-md md:text-lg font-black text-slate-800 capitalize tracking-tight truncate max-w-[150px] sm:max-w-none">
               {menuItems.find(m => m.id === activeTab)?.label || 'OviManager'}
             </h2>
           </div>
@@ -140,8 +140,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 pb-24 md:pb-8">
-          <div className="max-w-7xl mx-auto h-full">
+        {/* O "Elevador" central do aplicativo */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-50/50">
+          <div className="max-w-7xl mx-auto p-4 md:p-8 pb-32 md:pb-12">
             {children}
           </div>
         </main>
@@ -151,9 +152,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-[60] animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
-          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto">
+          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto custom-scrollbar">
             <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8"></div>
-            <div className="space-y-8">
+            <div className="space-y-8 pb-10">
               {['Principal', 'Operacional', 'Suporte', 'Cadastros', 'Sistema'].map(cat => (
                 <div key={cat}>
                   <h3 className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 mb-4 ml-2 border-l-2 border-emerald-500 pl-3">{cat}</h3>
@@ -186,7 +187,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
                 </button>
               </div>
             </div>
-            <div className="h-10"></div>
           </div>
         </div>
       )}
@@ -219,14 +219,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
 
       <style>{`
         .h-18 { height: 4.5rem; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        @media (max-width: 768px) {
-          .custom-scrollbar::-webkit-scrollbar { width: 0px; }
-        }
-        .scale-120 { transform: scale(1.2); }
       `}</style>
     </div>
   );

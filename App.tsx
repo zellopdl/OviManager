@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
+import ChartsView from './components/ChartsView';
 import SheepTable from './components/SheepTable';
 import SheepForm from './components/SheepForm';
 import ManejoManager from './components/ManejoManager';
@@ -60,7 +61,6 @@ const App: React.FC = () => {
 
       return () => subscription.unsubscribe();
     } else {
-      // Se o Supabase não estiver configurado, permite acesso local (opcional)
       setAuthLoading(false);
     }
   }, []);
@@ -204,7 +204,8 @@ const App: React.FC = () => {
     const safeSheep = sheep || [];
 
     switch (activeTab) {
-      case 'dashboard': return <Dashboard sheep={safeSheep} breeds={breeds} />;
+      case 'dashboard': return <Dashboard sheep={safeSheep} breeds={breeds} groups={groups} />;
+      case 'charts': return <ChartsView sheep={safeSheep} breeds={breeds} groups={groups} />;
       case 'guia': return <KnowledgeAssistant />;
       case 'manejo': return <ManejoManager sheep={safeSheep} paddocks={paddocks} groups={groups} onRefreshSheep={loadInitialData} managerPassword={managerPassword} />;
       case 'weight': return <WeightManager sheep={safeSheep} groups={groups} onRefresh={loadInitialData} />;
@@ -349,7 +350,7 @@ const App: React.FC = () => {
       
       {analysisSheep && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-lg overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 pb-4">
               <div className="flex justify-between items-start mb-6">
                 <div>

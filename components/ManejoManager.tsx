@@ -367,11 +367,11 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
+    <div className="flex flex-col h-full max-w-7xl mx-auto space-y-4 animate-in fade-in duration-500 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm shrink-0">
         <div>
            <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Agenda de Manejo</h2>
-           <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">Cronograma cronológico operacional.</p>
+           <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">Cronograma operacional técnico.</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <div className="bg-slate-100 p-1 rounded-xl flex">
@@ -383,59 +383,63 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
       </div>
 
       {viewMode === 'calendario' ? (
-        <ManejoCalendar manejos={manejos} />
+        <div className="flex-1 overflow-hidden">
+          <ManejoCalendar manejos={manejos} />
+        </div>
       ) : (
-        <>
-          <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-200/50 w-fit rounded-xl">
+        <div className="flex-1 flex flex-col space-y-4 min-h-0">
+          <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-200/50 w-fit rounded-xl shrink-0">
             {[{ id: StatusManejo.PENDENTE, label: 'Hoje' }, { id: 'futuros', label: 'Próximos' }, { id: StatusManejo.CONCLUIDO, label: 'Concluídos' }].map(btn => (
               <button key={btn.id} onClick={() => setFilter(btn.id as any)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filter === btn.id ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>{btn.label}</button>
             ))}
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
-          ) : Object.keys(groupedManejos).length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200"><p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Sem tarefas ativas.</p></div>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(groupedManejos).map(([date, items]) => (
-                <div key={date} className="space-y-2">
-                  <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">{date}</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {(items as Manejo[]).map(m => (
-                      <ManejoCompactCard key={m.id} m={m} distribution={getManejoDistribution(m)} requestAuth={requestAuth} handleOpenExec={() => { setCurrentManejo(m); setIsExecModalOpen(true); }} isFuture={filter === 'futuros'} />
-                    ))}
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
+            {loading ? (
+              <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div></div>
+            ) : Object.keys(groupedManejos).length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200"><p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Sem tarefas ativas.</p></div>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(groupedManejos).map(([date, items]) => (
+                  <div key={date} className="space-y-2">
+                    <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">{date}</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(items as Manejo[]).map(m => (
+                        <ManejoCompactCard key={m.id} m={m} distribution={getManejoDistribution(m)} requestAuth={requestAuth} handleOpenExec={() => { setCurrentManejo(m); setIsExecModalOpen(true); }} isFuture={filter === 'futuros'} />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl my-8 animate-in zoom-in-95 duration-300">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-              <div><h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{isEditing ? 'Editar Protocolo' : 'Novo Protocolo'}</h3><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Configuração de Manejo Operacional</p></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <div><h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{isEditing ? 'Editar Protocolo' : 'Novo Protocolo'}</h3><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Configuração Operacional</p></div>
               <button onClick={() => { setIsFormOpen(false); resetForm(); }} className="w-10 h-10 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center">✕</button>
             </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[75vh] custom-scrollbar">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Título da Tarefa *</label>
-                <input required placeholder="EX: ORDENHA MANHÃ" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm uppercase" value={formData.titulo} onChange={e => setFormData({...formData, titulo: e.target.value})} />
+                <input required placeholder="EX: VACINAÇÃO LOTE 01" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm uppercase transition-all" value={formData.titulo} onChange={e => setFormData({...formData, titulo: e.target.value})} />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Frequência</label>
-                  <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.recorrencia} onChange={e => setFormData({...formData, recorrencia: e.target.value as Recorrencia})}>
+                  <select className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.recorrencia} onChange={e => setFormData({...formData, recorrencia: e.target.value as Recorrencia})}>
                     {RECORRENCIA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Tipo de Manejo</label>
-                  <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value as TipoManejo})}>
+                  <select className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value as TipoManejo})}>
                     {TIPO_MANEJO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
@@ -444,74 +448,44 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Data Planejada</label>
-                  <input type="date" className={`w-full p-3 bg-slate-50 border ${!dateValidation.isValid ? 'border-rose-400' : 'border-slate-200'} rounded-xl outline-none font-bold text-sm`} value={formData.dataPlanejada} onChange={e => setFormData({...formData, dataPlanejada: e.target.value})} />
+                  <input type="date" className={`w-full p-3 bg-slate-50 border transition-all ${!dateValidation.isValid ? 'border-rose-400' : 'border-slate-200 focus:border-emerald-500'} rounded-xl outline-none font-bold text-sm`} value={formData.dataPlanejada} onChange={e => setFormData({...formData, dataPlanejada: e.target.value})} />
                   {!dateValidation.isValid && <button type="button" onClick={autoAdjustDate} className="mt-2 text-[10px] font-black text-rose-600 uppercase">Ajustar Data Automaticamente</button>}
                 </div>
                 <div>
-                  <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Horário de Execução</label>
-                  <input type="time" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.horaPlanejada} onChange={e => setFormData({...formData, horaPlanejada: e.target.value})} />
+                  <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Horário</label>
+                  <input type="time" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.horaPlanejada} onChange={e => setFormData({...formData, horaPlanejada: e.target.value})} />
                 </div>
               </div>
 
               {formData.recorrencia !== Recorrencia.NENHUMA && (
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4 animate-in slide-in-from-top-2">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
                   <h4 className="text-[9px] font-black text-slate-500 uppercase mb-1 tracking-widest">Configuração de Repetição</h4>
-                  
                   {formData.recorrencia === Recorrencia.DIARIA && (
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 font-bold">Repetir a cada</span>
-                      <input type="number" min="1" className="w-16 p-2 bg-white border border-slate-200 rounded-xl font-black text-center" value={formData.recorrenciaConfig.intervaloDiario} onChange={e => setFormData({...formData, recorrenciaConfig: {...formData.recorrenciaConfig, intervaloDiario: parseInt(e.target.value) || 1}})} />
+                      <span className="text-[10px] text-slate-400 font-bold">A cada</span>
+                      <input type="number" min="1" className="w-16 p-2 bg-white border border-slate-200 focus:border-emerald-500 rounded-xl font-black text-center outline-none transition-all" value={formData.recorrenciaConfig.intervaloDiario} onChange={e => setFormData({...formData, recorrenciaConfig: {...formData.recorrenciaConfig, intervaloDiario: parseInt(e.target.value) || 1}})} />
                       <span className="text-[10px] text-slate-400 font-bold">dia(s)</span>
                     </div>
                   )}
                   {formData.recorrencia === Recorrencia.SEMANAL && (
                     <div className="flex flex-wrap gap-2">
                       {diasSemana.map(d => (
-                        <button key={d.value} type="button" onClick={() => toggleDay(d.value)} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${formData.recorrenciaConfig.diasSemana?.includes(d.value) ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200'}`}> {d.label} </button>
+                        <button key={d.value} type="button" onClick={() => toggleDay(d.value)} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${formData.recorrenciaConfig.diasSemana?.includes(d.value) ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200 hover:border-indigo-300'}`}> {d.label} </button>
                       ))}
                     </div>
                   )}
-                  {formData.recorrencia === Recorrencia.MENSAL && (
-                    <div className="flex items-center gap-3">
-                      <label className="text-[9px] font-black text-slate-400 uppercase">Dia do Mês:</label>
-                      <input type="number" min="1" max="31" className="w-20 p-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-center" value={formData.recorrenciaConfig.diasMes?.[0] || ''} onChange={e => setFormData({ ...formData, recorrenciaConfig: { ...formData.recorrenciaConfig, diasMes: [parseInt(e.target.value)] } })} />
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-slate-200">
-                    <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Duração do Protocolo (Opcional)</label>
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="number" 
-                        min="1" 
-                        placeholder="Sem limite"
-                        className="w-32 p-2 bg-white border border-slate-200 rounded-xl font-bold text-sm text-center" 
-                        value={formData.recorrenciaConfig.duracaoValor || ''} 
-                        onChange={e => setFormData({ ...formData, recorrenciaConfig: { ...formData.recorrenciaConfig, duracaoValor: e.target.value ? parseInt(e.target.value) : null } })} 
-                      />
-                      <span className="text-[10px] text-slate-400 font-bold">dias de vigência total</span>
-                    </div>
-                    <p className="text-[8px] text-slate-300 font-bold uppercase mt-1">A recorrência será encerrada automaticamente após este período.</p>
-                  </div>
                 </div>
               )}
 
               <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
                 <div className="flex justify-between items-center"><h4 className="font-black text-slate-800 uppercase tracking-widest text-[9px]">Alvos</h4><div className="flex p-1 bg-slate-200 rounded-xl"><button type="button" onClick={() => handleSelectionModeChange('none')} className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${selectionMode === 'none' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Geral</button><button type="button" onClick={() => handleSelectionModeChange('individual')} className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${selectionMode === 'individual' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Animal</button><button type="button" onClick={() => handleSelectionModeChange('group')} className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${selectionMode === 'group' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>Lote</button></div></div>
-                {selectionMode === 'group' && <select className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.grupoId} onChange={e => setFormData({...formData, grupoId: e.target.value})}><option value="">Lote...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}</select>}
+                {selectionMode === 'group' && <select className="w-full p-3 bg-white border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.grupoId} onChange={e => setFormData({...formData, grupoId: e.target.value})}><option value="">Selecione o Lote...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}</select>}
                 {selectionMode === 'individual' && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{activeSheep.length} Ativos</span>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={handleSelectAllActive} className="px-4 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-lg shadow-sm hover:bg-indigo-700 transition-all">Selecionar Todos</button>
-                        <button type="button" onClick={handleClearSelection} className="px-4 py-1.5 bg-slate-100 text-slate-500 text-[9px] font-black uppercase rounded-lg border border-slate-200 hover:bg-slate-200 transition-all">Limpar</button>
-                      </div>
-                    </div>
-                    <div className="bg-white border rounded-xl h-48 overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 shadow-inner custom-scrollbar">
+                  <div className="space-y-4">
+                    <div className="bg-white border rounded-xl h-48 overflow-y-auto p-3 grid grid-cols-2 gap-2 custom-scrollbar">
                       {activeSheep.map(s => (
-                        <label key={s.id} className={`flex items-center gap-2 p-2.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${formData.selectedSheep.includes(s.id) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                          <input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300" checked={formData.selectedSheep.includes(s.id)} onChange={e => setFormData({...formData, selectedSheep: e.target.checked ? [...formData.selectedSheep, s.id] : formData.selectedSheep.filter(id => id !== s.id)})}/>
+                        <label key={s.id} className={`flex items-center gap-2 p-2.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${formData.selectedSheep.includes(s.id) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-300'}`}>
+                          <input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300 focus:ring-emerald-500" checked={formData.selectedSheep.includes(s.id)} onChange={e => setFormData({...formData, selectedSheep: e.target.checked ? [...formData.selectedSheep, s.id] : formData.selectedSheep.filter(id => id !== s.id)})}/>
                           <span className="truncate">#{s.brinco} - {s.nome}</span>
                         </label>
                       ))}
@@ -523,31 +497,31 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
               <div>
                 <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Procedimento / POP</label>
                 <textarea 
-                  rows={3} 
-                  placeholder="Passo-a-passo operacional para esta tarefa..." 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-sm" 
+                  rows={4} 
+                  placeholder="Instruções passo-a-passo para esta tarefa..." 
+                  className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-medium text-sm transition-all focus:bg-white" 
                   value={formData.procedimento} 
                   onChange={e => setFormData({...formData, procedimento: e.target.value})} 
                 />
               </div>
 
               <div>
-                <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Responsável</label>
-                <input placeholder="NOME" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm uppercase" value={formData.colaborador} onChange={e => setFormData({...formData, colaborador: e.target.value})} />
+                <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Colaborador / Responsável</label>
+                <input placeholder="NOME" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm uppercase transition-all" value={formData.colaborador} onChange={e => setFormData({...formData, colaborador: e.target.value})} />
               </div>
 
               <div>
                 <label className="block text-[9px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Observações Adicionais</label>
                 <textarea 
                   rows={2} 
-                  placeholder="Notas, alertas ou cuidados especiais..." 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-sm uppercase" 
+                  placeholder="Alertas ou notas extras..." 
+                  className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-medium text-sm uppercase transition-all focus:bg-white" 
                   value={formData.observacoes} 
                   onChange={e => setFormData({...formData, observacoes: e.target.value})} 
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 border-t">
+              <div className="flex justify-end gap-3 pt-6 border-t shrink-0">
                 <button type="button" onClick={() => { setIsFormOpen(false); resetForm(); }} className="px-6 py-3 font-black text-slate-400 uppercase text-[10px]">Cancelar</button>
                 <button type="submit" disabled={!dateValidation.isValid || !formData.titulo.trim()} className={`px-10 py-3 font-black rounded-2xl shadow-xl uppercase text-[10px] transition-all ${!dateValidation.isValid ? 'bg-slate-200' : 'bg-slate-900 text-white'}`} > Salvar </button>
               </div>
@@ -557,19 +531,19 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
       )}
 
       {isExecModalOpen && currentManejo && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl animate-in zoom-in-95 duration-300">
-            <div className="p-8 border-b border-slate-100 flex justify-between bg-emerald-50/50">
+            <div className="p-8 border-b border-slate-100 flex justify-between bg-emerald-50/50 rounded-t-[32px]">
               <div><h3 className="text-xl font-black text-emerald-900 uppercase">Concluir Manejo</h3><p className="text-[10px] font-black text-emerald-600 uppercase">Finalização da tarefa</p></div>
               <button onClick={() => setIsExecModalOpen(false)} className="w-10 h-10 bg-white border border-emerald-100 rounded-full flex items-center justify-center">✕</button>
             </div>
-            <div className="p-8 space-y-6">
-              <div><label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Data Real de Conclusão</label><input type="date" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={execData.dataExecucao} onChange={e => setExecData({...execData, dataExecucao: e.target.value})} /></div>
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+              <div><label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Data Real da Tarefa</label><input type="date" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={execData.dataExecucao} onChange={e => setExecData({...execData, dataExecucao: e.target.value})} /></div>
               {(currentManejo.grupoId || (currentManejo.ovelhasIds && currentManejo.ovelhasIds.length > 0)) && (
-                <label className="flex items-center gap-3 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 cursor-pointer"><input type="checkbox" className="w-5 h-5 text-emerald-600" checked={execData.updateHealth} onChange={e => setExecData({...execData, updateHealth: e.target.checked})} /><div><span className="font-black text-[11px] text-emerald-700 uppercase block">Gravar Saúde em Massa</span></div></label>
+                <label className="flex items-center gap-3 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-50 transition-all"><input type="checkbox" className="w-5 h-5 text-emerald-600 focus:ring-emerald-500" checked={execData.updateHealth} onChange={e => setExecData({...execData, updateHealth: e.target.checked})} /><div><span className="font-black text-[11px] text-emerald-700 uppercase block">Gravar Saúde em Massa</span></div></label>
               )}
-              <div><label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Relatório Final</label><textarea rows={3} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm" placeholder="..." value={execData.obsExecucao} onChange={e => setExecData({...execData, obsExecucao: e.target.value})} /></div>
-              <div className="flex flex-col gap-2 pt-4"><button onClick={handleFinishManejo} className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-[11px]">Finalizar Manejo</button></div>
+              <div><label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Relatório Final</label><textarea rows={3} className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none text-sm transition-all focus:bg-white" placeholder="Resumo do que foi feito..." value={execData.obsExecucao} onChange={e => setExecData({...execData, obsExecucao: e.target.value})} /></div>
+              <div className="flex flex-col gap-2 pt-4"><button onClick={handleFinishManejo} className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl uppercase text-[11px] active:scale-95 transition-all">Finalizar Manejo</button></div>
             </div>
           </div>
         </div>
@@ -578,7 +552,7 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
       {isAuthModalOpen && authAction && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-sm p-6 text-center animate-in zoom-in-95">
           <h3 className="text-lg font-black text-slate-800 uppercase mb-2">Segurança</h3>
-          <input type="password" autoFocus className="w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold text-center tracking-widest mb-4" value={pwdInput} onChange={(e) => setPwdInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAuthConfirm()} />
+          <input type="password" autoFocus className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-center tracking-widest mb-4 transition-all" value={pwdInput} onChange={(e) => setPwdInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAuthConfirm()} />
           <div className="flex gap-2"><button onClick={() => setIsAuthModalOpen(false)} className="flex-1 py-2 text-slate-400 font-black text-[9px] uppercase">Cancelar</button><button onClick={handleAuthConfirm} className="flex-1 py-2 bg-emerald-600 text-white font-black rounded-xl text-[10px] uppercase">Confirmar</button></div>
         </div></div>
       )}
@@ -616,7 +590,7 @@ const ManejoCompactCard = ({ m, distribution, requestAuth, handleOpenExec, isFut
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {m.status === StatusManejo.PENDENTE && !isFuture && <button onClick={(e) => { e.stopPropagation(); handleOpenExec(); }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest">Concluir</button>}
+          {m.status === StatusManejo.PENDENTE && !isFuture && <button onClick={(e) => { e.stopPropagation(); handleOpenExec(); }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all">Concluir</button>}
           <div className="text-slate-300 text-[10px]" style={{ transform: isExpanded ? 'rotate(180deg)' : '' }}>▼</div>
         </div>
       </div>
@@ -630,7 +604,7 @@ const ManejoCompactCard = ({ m, distribution, requestAuth, handleOpenExec, isFut
             {m.procedimento && (
               <div className="bg-white p-3 rounded-xl border border-slate-100">
                 <h5 className="text-[8px] font-black text-slate-400 uppercase mb-1">Procedimento POP</h5>
-                <p className="text-[10px] text-slate-600 leading-relaxed">{m.procedimento}</p>
+                <p className="text-[10px] text-slate-600 leading-relaxed italic">{m.procedimento}</p>
               </div>
             )}
             {m.observacoes && (
@@ -639,15 +613,9 @@ const ManejoCompactCard = ({ m, distribution, requestAuth, handleOpenExec, isFut
                 <p className="text-[10px] text-slate-500 leading-relaxed uppercase">{m.observacoes}</p>
               </div>
             )}
-            {m.recorrenciaConfig?.duracaoValor && (
-               <div className="bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                  <p className="text-[8px] font-black text-indigo-400 uppercase">Duração do Protocolo</p>
-                  <p className="text-[9px] font-bold text-indigo-700 uppercase">Fim planejado em: {formatBrazilianDate(addDaysLocal(m.recorrenciaConfig.dataInicioReferencia || m.dataPlanejada, m.recorrenciaConfig.duracaoValor))}</p>
-               </div>
-            )}
             <div className="flex gap-2 justify-end pt-2 border-t border-slate-100">
-              <button onClick={() => requestAuth('edit', m)} className="text-[9px] font-black text-slate-400 uppercase px-3 py-2">Editar</button>
-              <button onClick={() => requestAuth('delete', m)} className="text-[9px] font-black text-rose-400 uppercase px-3 py-2">Remover</button>
+              <button onClick={() => requestAuth('edit', m)} className="text-[9px] font-black text-slate-400 uppercase px-3 py-2 hover:text-emerald-600 transition-colors">Editar</button>
+              <button onClick={() => requestAuth('delete', m)} className="text-[9px] font-black text-rose-400 uppercase px-3 py-2 hover:text-rose-600 transition-colors">Remover</button>
             </div>
           </div>
         </div>

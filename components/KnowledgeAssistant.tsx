@@ -62,7 +62,6 @@ const KnowledgeAssistant: React.FC = () => {
     if (!answer || isSaving) return;
     setIsSaving(true);
     try {
-      // Criamos um título curto baseado na pergunta
       const tituloSugerido = question.length > 40 ? question.substring(0, 37) + "..." : question;
       
       await knowledgeService.create({
@@ -110,25 +109,23 @@ const KnowledgeAssistant: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 rounded-2xl shadow-md text-white">
+    <div className="flex flex-col h-full max-w-6xl mx-auto space-y-4 animate-in fade-in duration-500 pb-4">
+      <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 rounded-2xl shadow-md text-white shrink-0">
         <h2 className="text-xl font-black flex items-center gap-2">💡 Guia do Rebanho</h2>
-        <p className="mt-1 text-amber-50 text-[11px] font-medium opacity-90 max-w-xl">Consultoria técnica global integrando EMBRAPA, MLA e rebanhos internacionais.</p>
+        <p className="mt-1 text-amber-50 text-[11px] font-medium opacity-90 max-w-xl">Consultoria técnica global para seu rebanho.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 space-y-4">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+        <div className="lg:col-span-7 flex flex-col space-y-4 overflow-hidden">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col shrink-0">
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">✨ Nova Consulta</h3>
-            <div className="relative">
-              <textarea 
-                rows={3}
-                placeholder="Ex: Como prevenir verminose em climas úmidos?"
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-amber-500 transition-all resize-none text-base font-medium"
-                value={question}
-                onChange={e => setQuestion(e.target.value)}
-              />
-            </div>
+            <textarea 
+              rows={3}
+              placeholder="Ex: Como prevenir verminose em climas úmidos?"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-amber-500 transition-all resize-none text-base font-medium"
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+            />
             <button 
               onClick={handleAsk} 
               disabled={loading || !question.trim()} 
@@ -138,9 +135,11 @@ const KnowledgeAssistant: React.FC = () => {
             >
               {loading ? 'PESQUISANDO...' : 'OBTER RESPOSTA'}
             </button>
+          </div>
 
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             {answer && (
-              <div className="mt-4 p-5 rounded-xl border shadow-inner animate-in slide-in-from-top-2 bg-amber-50 border-amber-100">
+              <div className="p-5 rounded-xl border shadow-inner animate-in slide-in-from-top-2 bg-amber-50 border-amber-100 mb-4">
                 <div className="flex justify-between items-center mb-3">
                   <span className="px-3 py-1 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700">
                     IA Técnica
@@ -148,15 +147,14 @@ const KnowledgeAssistant: React.FC = () => {
                   <div className="flex gap-2">
                     <button 
                       onClick={handleSpeak} 
-                      title="Ouvir Resposta"
-                      className={`h-8 px-3 bg-white text-amber-700 border border-amber-200 rounded-lg text-xs transition-all hover:bg-amber-50 ${audioStatus === 'playing' ? 'ring-2 ring-amber-400 animate-pulse' : ''}`}
+                      className={`h-8 px-3 bg-white text-amber-700 border border-amber-200 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${audioStatus === 'playing' ? 'ring-2 ring-amber-400' : ''}`}
                     >
-                      {audioStatus === 'loading' ? '⏳' : audioStatus === 'playing' ? '⏹️ Parar' : '🔊 Ouvir'}
+                      {audioStatus === 'loading' ? '⏳' : audioStatus === 'playing' ? 'Parar' : '🔊 Ouvir'}
                     </button>
                     <button 
                       onClick={handleSave} 
                       disabled={isSaving}
-                      className="h-8 px-3 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-700 active:scale-95 transition-all"
+                      className="h-8 px-3 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm hover:bg-emerald-700 active:scale-95 transition-all"
                     >
                       {isSaving ? 'Salvando...' : '💾 Salvar no Guia'}
                     </button>
@@ -170,9 +168,9 @@ const KnowledgeAssistant: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-5 space-y-4 flex flex-col h-[600px]">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-            <h3 className="font-black text-slate-800 uppercase tracking-widest text-[10px]">📚 Biblioteca</h3>
+        <div className="lg:col-span-5 flex flex-col space-y-4 overflow-hidden">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 shrink-0">
+            <h3 className="font-black text-slate-800 uppercase tracking-widest text-[10px]">📚 Sua Biblioteca</h3>
             <input 
               type="text" 
               placeholder="Buscar na biblioteca..." 
@@ -182,7 +180,7 @@ const KnowledgeAssistant: React.FC = () => {
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-10">
             {!searchTerm && !activeSubject && (
               <div className="grid grid-cols-2 gap-3">
                 {groupedEntries.map(([name, count]) => (
@@ -219,9 +217,6 @@ const KnowledgeAssistant: React.FC = () => {
                     </button>
                   </div>
                 ))}
-                {filteredEntries.length === 0 && (
-                  <p className="text-center py-10 text-slate-400 text-[10px] font-black uppercase">Nenhum resultado encontrado.</p>
-                )}
               </div>
             )}
           </div>

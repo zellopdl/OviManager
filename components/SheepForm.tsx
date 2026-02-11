@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sheep, Breed, Supplier, Group, Paddock, Sexo, Status, Sanidade } from '../types';
 import { FAMACHA_OPTIONS, ECC_OPTIONS, STATUS_OPTIONS, SEXO_OPTIONS, SANIDADE_OPTIONS } from '../constants';
+import { calculateAge } from '../utils';
 
 interface SheepFormProps {
   sheep?: Sheep;
@@ -195,7 +196,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
                       name="brinco"
                       type="text" 
                       required
-                      className={`w-full p-3 bg-slate-50 border ${errors.brinco ? 'border-rose-400 ring-2 ring-rose-500/10' : 'border-slate-200'} rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-mono font-bold text-sm uppercase`}
+                      className={`w-full p-3 bg-slate-50 border ${errors.brinco ? 'border-rose-400 ring-2 ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500'} rounded-xl focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all font-mono font-bold text-sm uppercase`}
                       value={formData.brinco}
                       onChange={handleChange}
                       placeholder="000/00"
@@ -212,7 +213,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
                       name="nome"
                       type="text" 
                       required
-                      className={`w-full p-3 bg-slate-50 border ${errors.nome ? 'border-rose-400 ring-2 ring-rose-500/10' : 'border-slate-200'} rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-sm uppercase`}
+                      className={`w-full p-3 bg-slate-50 border ${errors.nome ? 'border-rose-400 ring-2 ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500'} rounded-xl focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all font-bold text-sm uppercase`}
                       value={formData.nome}
                       onChange={handleChange}
                       placeholder="EX: LUNA, BARÃO..."
@@ -224,28 +225,33 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
 
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Sexo</label>
-                  <select name="sexo" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.sexo} onChange={handleChange}>
+                  <select name="sexo" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.sexo} onChange={handleChange}>
                     {SEXO_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Data de Nascimento</label>
-                  <input name="nascimento" type="date" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.nascimento} onChange={handleChange} />
+                  <input name="nascimento" type="date" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.nascimento} onChange={handleChange} />
+                  {formData.nascimento && (
+                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1.5 ml-1">
+                      ✨ Idade estimada: {calculateAge(formData.nascimento || '')}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Raça</label>
-                  <select name="racaId" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.racaId} onChange={handleChange}>
+                  <select name="racaId" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.racaId} onChange={handleChange}>
                     <option value="">Selecione a Raça...</option>
                     {breeds.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Origem / Fornecedor</label>
-                  <select name="origem" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.origem} onChange={handleChange}>
+                  <select name="origem" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.origem} onChange={handleChange}>
                     <option value="Nascido na Fazenda">Nascido na Fazenda</option>
                     {suppliers.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                     {/* Caso especial: Se o fornecedor foi excluído, mantém o nome salvo no banco visível aqui */}
@@ -264,11 +270,11 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Nome do Pai</label>
-                  <input name="pai" type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm uppercase" value={formData.pai} onChange={handleChange} placeholder="NOME DO REPRODUTOR" />
+                  <input name="pai" type="text" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm uppercase transition-all" value={formData.pai} onChange={handleChange} placeholder="NOME DO REPRODUTOR" />
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Nome da Mãe</label>
-                  <input name="mae" type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm uppercase" value={formData.mae} onChange={handleChange} placeholder="NOME DA MATRIZ" />
+                  <input name="mae" type="text" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm uppercase transition-all" value={formData.mae} onChange={handleChange} placeholder="NOME DA MATRIZ" />
                 </div>
               </div>
             </div>
@@ -278,7 +284,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
               <textarea 
                 name="obs" 
                 rows={4} 
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-sm focus:bg-white transition-all resize-none"
+                className="w-full p-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-medium text-sm focus:bg-white transition-all resize-none"
                 value={formData.obs}
                 onChange={handleChange}
                 placeholder="Ex: Animal dócil, histórico de partos duplos, etc..."
@@ -294,7 +300,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
               
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase mb-1.5 tracking-widest">Lote / Grupo</label>
-                <select name="grupoId" className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl outline-none font-bold text-sm text-white" value={formData.grupoId} onChange={handleChange}>
+                <select name="grupoId" className="w-full p-3 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm text-white transition-all" value={formData.grupoId} onChange={handleChange}>
                   <option value="">Sem Grupo Definido</option>
                   {groups.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
                 </select>
@@ -302,7 +308,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
 
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase mb-1.5 tracking-widest">Piquete Atual</label>
-                <select name="piqueteId" className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl outline-none font-bold text-sm text-white" value={formData.piqueteId} onChange={handleChange}>
+                <select name="piqueteId" className="w-full p-3 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm text-white transition-all" value={formData.piqueteId} onChange={handleChange}>
                   <option value="">Sem Piquete Definido</option>
                   {paddocks.map(p => <option key={p.id} value={p.id}>{p.piquete}</option>)}
                 </select>
@@ -310,7 +316,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
 
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase mb-1.5 tracking-widest">Situação do Animal</label>
-                <select name="status" className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl outline-none font-bold text-sm text-white" value={formData.status} onChange={handleChange}>
+                <select name="status" className="w-full p-3 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm text-white transition-all" value={formData.status} onChange={handleChange}>
                   {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
@@ -321,7 +327,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
                     <input 
                       name="prenha"
                       type="checkbox" 
-                      className="w-5 h-5 text-emerald-500 rounded bg-slate-800 border-slate-600"
+                      className="w-5 h-5 text-emerald-500 rounded bg-slate-800 border-slate-600 focus:ring-emerald-500"
                       checked={formData.prenha}
                       onChange={handleChange}
                     />
@@ -341,10 +347,10 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
 
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Status de Sanidade</label>
-                <select name="sanidade" className={`w-full p-3 border rounded-xl outline-none font-black text-sm uppercase ${
-                  formData.sanidade === Sanidade.SAUDAVEL ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                  formData.sanidade === Sanidade.ENFERMARIA ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                  'bg-rose-50 border-rose-200 text-rose-700'
+                <select name="sanidade" className={`w-full p-3 border rounded-xl outline-none font-black text-sm uppercase transition-all ${
+                  formData.sanidade === Sanidade.SAUDAVEL ? 'bg-emerald-50 border-emerald-200 text-emerald-700 focus:border-emerald-500' :
+                  formData.sanidade === Sanidade.ENFERMARIA ? 'bg-amber-50 border-amber-200 text-amber-700 focus:border-amber-500' :
+                  'bg-rose-50 border-rose-200 text-rose-700 focus:border-rose-500'
                 }`} value={formData.sanidade} onChange={handleChange}>
                   {SANIDADE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -353,7 +359,7 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Peso de Entrada (kg)</label>
                 <div className="relative">
-                  <input name="peso" type="number" step="0.1" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-lg text-slate-800" value={formData.peso} onChange={handleChange} />
+                  <input name="peso" type="number" step="0.1" className="w-full p-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-black text-lg text-slate-800 transition-all" value={formData.peso} onChange={handleChange} />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 font-black text-xs">KG</span>
                 </div>
               </div>
@@ -361,13 +367,13 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Famacha</label>
-                  <select name="famacha" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.famacha} onChange={handleChange}>
+                  <select name="famacha" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.famacha} onChange={handleChange}>
                     {FAMACHA_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">ECC</label>
-                  <select name="ecc" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm" value={formData.ecc} onChange={handleChange}>
+                  <select name="ecc" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.ecc} onChange={handleChange}>
                     {ECC_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </div>

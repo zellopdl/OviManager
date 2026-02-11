@@ -1,13 +1,14 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Sheep, DashboardStats, Breed } from '../types';
+import { Sheep, DashboardStats, Breed, Group, Status } from '../types';
 import { getHerdDailyInsights } from '../services/geminiService';
 import { entityService } from '../services/entityService';
 
 interface DashboardProps {
   sheep: Sheep[];
   breeds: Breed[];
+  groups: Group[];
 }
 
 interface AIInsight {
@@ -21,7 +22,7 @@ interface AIInsight {
   fonte: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds }) => {
+const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds, groups }) => {
   const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +106,8 @@ const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds }) => {
     fetchInsights();
     loadDbStats();
     
-    const timer = setTimeout(() => setIsReady(true), 150);
+    // Aumentado para 300ms para garantir que o layout flex esteja estável
+    const timer = setTimeout(() => setIsReady(true), 300);
     return () => clearTimeout(timer);
   }, [fetchInsights, loadDbStats]);
 
@@ -117,23 +119,33 @@ const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds }) => {
 
   const stats: DashboardStats = {
     total: sheep.length,
-    ativos: sheep.filter(s => s.status === 'ativo').length,
+    ativos: sheep.filter(s => s.status === 'ativo' || s.status === Status.ATIVO).length,
     machos: sheep.filter(s => s.sexo === 'macho').length,
     femeas: sheep.filter(s => s.sexo === 'femea').length,
     mediaPeso: sheep.length > 0 ? sheep.reduce((acc, curr) => acc + curr.peso, 0) / sheep.length : 0,
   };
 
-  const statusData = [
-    { name: 'Ativos', value: stats.ativos },
-    { name: 'Descarte', value: sheep.filter(s => s.status === 'descarte').length },
-    { name: 'Óbito', value: sheep.filter(s => s.status === 'obito').length },
-  ].filter(d => d.value > 0);
+  // Cálculo de Ativos por Grupo para o Gráfico
+  // Fix: Added useMemo import to resolve error on line 129
+  const activeByGroupData = useMemo(() => {
+    const activeSheep = sheep.filter(s => s.status === 'ativo' || s.status === Status.ATIVO);
+    const counts: Record<string, number> = {};
+    
+    activeSheep.forEach(s => {
+      const groupName = groups.find(g => g.id === s.grupoId)?.nome || 'SEM LOTE';
+      counts[groupName] = (counts[groupName] || 0) + 1;
+    });
 
-  const safeStatusData = statusData.length > 0 ? statusData : [{ name: 'Sem dados', value: 0 }];
-  const COLORS = ['#10b981', '#f59e0b', '#ef4444'];
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [sheep, groups]);
+
+  const safeGroupData = activeByGroupData.length > 0 ? activeByGroupData : [{ name: 'Nenhum Ativo', value: 0 }];
+  const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#ef4444'];
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10 min-w-0 w-full overflow-hidden">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10 min-w-0 w-full overflow-visible">
       
       {/* RADAR DA IA COMPACTO */}
       <section className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
@@ -211,7 +223,7 @@ const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds }) => {
 
       {/* MODAL DE FUNDAMENTAÇÃO IA */}
       {selectedInsight && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
             {/* Header do Modal */}
             <div className={`p-8 border-b border-slate-100 flex justify-between items-start ${
@@ -315,11 +327,16 @@ const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 min-h-[300px] flex flex-col min-w-0">
-          <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4">Status do Rebanho</h4>
-          <div className="w-full flex-1 min-h-[240px]">
+          <div className="flex justify-between items-start mb-4">
+            <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Status do Rebanho (Ativos por Lote)</h4>
+            <div className="px-2 py-0.5 bg-slate-900 text-white rounded-lg text-[8px] font-black uppercase tracking-widest">
+              Total: {stats.total}
+            </div>
+          </div>
+          <div className="w-full flex-1 min-h-[250px] relative min-w-0">
             {isReady && (
-              <ResponsiveContainer width="100%" aspect={1.8}>
-                <BarChart data={safeStatusData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={safeGroupData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis 
                     dataKey="name" 
@@ -337,7 +354,7 @@ const Dashboard: React.FC<DashboardProps> = ({ sheep, breeds }) => {
                     contentStyle={{ borderRadius: '12px', fontSize: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
                   />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={32}>
-                    {safeStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    {safeGroupData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
