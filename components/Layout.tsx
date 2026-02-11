@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,6 +39,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
   const handleTabClick = (id: string) => {
     setActiveTab(id);
     setIsMobileMenuOpen(false);
+  };
+
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
   };
 
   return (
@@ -95,7 +102,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
           ))}
         </nav>
 
-        <div className="p-3 border-t border-slate-800">
+        <div className="p-3 border-t border-slate-800 space-y-1">
+          <button 
+            onClick={handleLogout}
+            className={`w-full flex items-center rounded-xl text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-all ${
+              isDesktopCollapsed ? 'justify-center py-3' : 'gap-3 px-3 py-2.5'
+            }`}
+          >
+            <span className="text-lg">🚪</span>
+            {!isDesktopCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Sair do Sistema</span>}
+          </button>
+          
           <button 
             onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
             className="w-full flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-white hover:bg-slate-800 transition-all"
@@ -158,6 +175,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
                   </div>
                 </div>
               ))}
+              
+              <div className="pt-4 border-t border-slate-100">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-4 p-5 bg-rose-50 text-rose-600 rounded-2xl font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all"
+                >
+                  <span className="text-xl">🚪</span>
+                  Sair do Sistema
+                </button>
+              </div>
             </div>
             <div className="h-10"></div>
           </div>

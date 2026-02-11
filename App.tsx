@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import SheepTable from './components/SheepTable';
@@ -11,16 +11,18 @@ import PaddockManager from './components/PaddockManager';
 import SupplierManager from './components/SupplierManager';
 import LogoGenerator from './components/LogoGenerator';
 import WeightManager from './components/WeightManager';
-import BreedingPlanManager from './components/BreedingPlanManager';
 import ReproductionManager from './components/ReproductionManager';
+import Login from './components/Login';
 import { Sheep, Breed, Supplier, Group, Paddock } from './types';
 import { sheepService } from './services/sheepService';
 import { entityService } from './services/entityService';
 import { getSheepInsight } from './services/geminiService';
-import { isSupabaseConfigured } from './lib/supabase';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { SUPABASE_SCHEMA_SQL } from './constants';
 
 const App: React.FC = () => {
+  const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingSheep, setEditingSheep] = useState<Sheep | undefined>(undefined);
@@ -33,7 +35,7 @@ const App: React.FC = () => {
   const [analysisText, setAnalysisText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
 
-  // Segurança
+  // Segurança Interna
   const [managerPassword, setManagerPassword] = useState(() => localStorage.getItem('ovi_manager_pwd') || '1234');
   const [isSettingsUnlocked, setIsSettingsUnlocked] = useState(false);
   const [unlockInput, setUnlockInput] = useState('');
@@ -44,7 +46,28 @@ const App: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [paddocks, setPaddocks] = useState<Paddock[]>([]);
 
+  // Monitorar Autenticação
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setAuthLoading(false);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+      });
+
+      return () => subscription.unsubscribe();
+    } else {
+      // Se o Supabase não estiver configurado, permite acesso local (opcional)
+      setAuthLoading(false);
+    }
+  }, []);
+
   const loadInitialData = useCallback(async (forceLocal = false) => {
+    if (!session && isSupabaseConfigured) return;
+
     try {
       if (!forceLocal && isSupabaseConfigured) setConnectionStatus('connecting');
       else setConnectionStatus('local');
@@ -70,11 +93,13 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => { 
-    loadInitialData(); 
-  }, [loadInitialData]);
+    if (session || !isSupabaseConfigured) {
+      loadInitialData(); 
+    }
+  }, [loadInitialData, session]);
 
   const handleAnalyzeSheep = async (s: Sheep) => {
     setAnalysisSheep(s);
@@ -104,6 +129,12 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+  };
+
   const copySqlSchema = () => {
     navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
     alert("Script SQL copiado! Use no Editor SQL do seu Supabase.");
@@ -124,7 +155,7 @@ const App: React.FC = () => {
           aiStatus === 'online' ? 'text-indigo-600' : 
           aiStatus === 'error' ? 'text-rose-600' : 'text-slate-400'
         }`}>
-          {aiStatus === 'online' ? 'Gemini 3.0' : aiStatus === 'error' ? 'IA OFF (Erro Chave)' : 'IA Pendente'}
+          {aiStatus === 'online' ? 'Gemini 3.0' : aiStatus === 'error' ? 'IA OFF' : 'IA Pendente'}
         </span>
       </div>
       
@@ -264,6 +295,14 @@ const App: React.FC = () => {
                       onChange={(e) => { setManagerPassword(e.target.value); localStorage.setItem('ovi_manager_pwd', e.target.value); }} 
                     />
                   </div>
+                  <div className="pt-4 border-t">
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full py-4 bg-rose-50 text-rose-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100"
+                    >
+                      🚪 Encerrar Sessão (Sair)
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -290,6 +329,17 @@ const App: React.FC = () => {
       default: return null;
     }
   };
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center flex-col gap-4">
+      <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+      <p className="text-emerald-500 font-black text-[10px] uppercase tracking-widest animate-pulse">Verificando Credenciais...</p>
+    </div>
+  );
+
+  if (!session && isSupabaseConfigured) {
+    return <Login />;
+  }
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab} headerExtra={HeaderActions}>
