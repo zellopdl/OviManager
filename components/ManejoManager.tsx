@@ -29,6 +29,11 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
   const [isEditing, setIsEditing] = useState(false);
   const [currentManejo, setCurrentManejo] = useState<Manejo | null>(null);
   const [selectionMode, setSelectionMode] = useState<'individual' | 'group' | 'none'>('none');
+  
+  // Estados do Dicionário
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyLetter, setHistoryLetter] = useState<string | null>(null);
 
   const [isExecModalOpen, setIsExecModalOpen] = useState(false);
   const [execData, setExecData] = useState({
@@ -81,6 +86,45 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
   useEffect(() => { loadManejos(); }, []);
 
   const activeSheep = useMemo(() => sheep.filter(s => s.status === 'ativo'), [sheep]);
+
+  // Dicionário de Títulos únicos e POPs já cadastrados
+  const taskDictionary = useMemo(() => {
+    const dict: Record<string, { titulo: string, procedimento: string }> = {};
+    manejos.forEach(m => {
+      const key = m.titulo.trim().toUpperCase();
+      if (!dict[key]) {
+        dict[key] = { titulo: m.titulo, procedimento: m.procedimento || '' };
+      } else if (!dict[key].procedimento && m.procedimento) {
+        dict[key].procedimento = m.procedimento;
+      }
+    });
+    return Object.values(dict).sort((a, b) => a.titulo.localeCompare(b.titulo));
+  }, [manejos]);
+
+  const filteredHistory = useMemo(() => {
+    let result = taskDictionary;
+    if (historyLetter && historyLetter !== ' ') {
+      result = result.filter(t => t.titulo.toUpperCase().startsWith(historyLetter));
+    }
+    if (historySearch) {
+      const q = historySearch.toUpperCase();
+      result = result.filter(t => t.titulo.toUpperCase().includes(q));
+    }
+    return result;
+  }, [taskDictionary, historyLetter, historySearch]);
+
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  const handleSelectHistory = (item: { titulo: string, procedimento: string }) => {
+    setFormData({
+      ...formData,
+      titulo: item.titulo.toUpperCase(),
+      procedimento: item.procedimento
+    });
+    setIsHistoryOpen(false);
+    setHistoryLetter(null);
+    setHistorySearch('');
+  };
 
   const handleSelectionModeChange = (mode: 'individual' | 'group' | 'none') => {
     setSelectionMode(mode);
@@ -366,6 +410,9 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
     { label: 'Qua', value: 3 }, { label: 'Qui', value: 4 }, { label: 'Sex', value: 5 }, { label: 'Sáb', value: 6 }
   ];
 
+  // Identifica se estamos em modo de listagem ou de índice alfabético no dicionário
+  const isHistoryListView = !!(historyLetter || historySearch);
+
   return (
     <div className="flex flex-col h-full max-w-7xl mx-auto space-y-4 animate-in fade-in duration-500 pb-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm shrink-0">
@@ -426,7 +473,12 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
             </div>
             <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
               <div className="md:col-span-2">
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5 tracking-widest">Título da Tarefa *</label>
+                <div className="flex justify-between items-end mb-1.5">
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Título da Tarefa *</label>
+                  <button type="button" onClick={() => setIsHistoryOpen(true)} className="text-[8px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 hover:underline">
+                    📖 Dicionário de Tarefas
+                  </button>
+                </div>
                 <input required placeholder="EX: VACINAÇÃO LOTE 01" className="w-full p-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm uppercase transition-all" value={formData.titulo} onChange={e => setFormData({...formData, titulo: e.target.value})} />
               </div>
               
@@ -482,6 +534,13 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
                 {selectionMode === 'group' && <select className="w-full p-3 bg-white border border-slate-200 focus:border-emerald-500 rounded-xl outline-none font-bold text-sm transition-all" value={formData.grupoId} onChange={e => setFormData({...formData, grupoId: e.target.value})}><option value="">Selecione o Lote...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}</select>}
                 {selectionMode === 'individual' && (
                   <div className="space-y-4">
+                    <div className="flex justify-between items-center px-1">
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handleSelectAllActive} className="text-[8px] font-black uppercase text-indigo-600 hover:underline">Selecionar Todos</button>
+                        <button type="button" onClick={handleClearSelection} className="text-[8px] font-black uppercase text-rose-600 hover:underline">Limpar Seleção</button>
+                      </div>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{formData.selectedSheep.length} selecionados</span>
+                    </div>
                     <div className="bg-white border rounded-xl h-48 overflow-y-auto p-3 grid grid-cols-2 gap-2 custom-scrollbar">
                       {activeSheep.map(s => (
                         <label key={s.id} className={`flex items-center gap-2 p-2.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${formData.selectedSheep.includes(s.id) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-300'}`}>
@@ -530,9 +589,159 @@ const ManejoManager: React.FC<ManejoManagerProps> = ({ sheep, paddocks, groups, 
         </div>
       )}
 
+      {/* DICIONÁRIO DE PROTOCOLOS (CADERNINHO) REFORMULADO */}
+      {isHistoryOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl h-[85vh] flex flex-col overflow-hidden animate-in slide-in-from-right-10 duration-500">
+            {/* Header Modal */}
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+              <div>
+                <h3 className="text-xl font-black text-indigo-900 uppercase tracking-tight">Dicionário de Tarefas</h3>
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-1">Acervo de Protocolos e Procedimentos</p>
+              </div>
+              <button onClick={() => { setIsHistoryOpen(false); setHistoryLetter(null); setHistorySearch(''); }} className="w-10 h-10 bg-white border border-indigo-100 rounded-full flex items-center justify-center text-indigo-400 hover:bg-rose-50 hover:text-rose-500 transition-all">✕</button>
+            </div>
+            
+            {/* Barra de Busca - Sempre Visível */}
+            <div className="p-6 border-b border-slate-50 bg-white">
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="BUSCAR PROTOCOLO POR NOME..." 
+                  className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm uppercase focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  value={historySearch}
+                  onChange={e => { setHistorySearch(e.target.value); if(e.target.value) setHistoryLetter(null); }}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Visualização de Resultados (quando há busca ou letra selecionada) */}
+              {isHistoryListView ? (
+                <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300 min-h-0">
+                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                      {historyLetter && historyLetter !== ' ' ? `Índice Alfabético: "${historyLetter}"` : 'Resultados Gerais'}
+                    </span>
+                    <button 
+                      onClick={() => { setHistoryLetter(null); setHistorySearch(''); }} 
+                      className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-white px-4 py-2 rounded-xl border border-slate-200 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm"
+                    >
+                      ← Voltar ao Índice A-Z
+                    </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                    {filteredHistory.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 opacity-30 text-center">
+                        <span className="text-5xl mb-4">📖</span>
+                        <p className="text-xs font-black uppercase tracking-widest">Nenhum protocolo encontrado para esta seleção.</p>
+                      </div>
+                    ) : (
+                      filteredHistory.map((item, idx) => (
+                        <div 
+                          key={idx}
+                          className="w-full bg-white border-2 border-slate-100 rounded-[32px] overflow-hidden hover:border-emerald-500/30 hover:shadow-xl transition-all group flex flex-col"
+                        >
+                          <div className="p-6 pb-4 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
+                            <div>
+                              <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight leading-tight group-hover:text-emerald-600">
+                                {item.titulo}
+                              </h4>
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 block">Protocolo Operacional Padrão (POP)</span>
+                            </div>
+                            <span className="text-xs shrink-0 bg-emerald-100 text-emerald-600 px-2 py-1 rounded-lg font-black uppercase opacity-0 group-hover:opacity-100 transition-opacity">Registrado ✨</span>
+                          </div>
+                          
+                          <div className="flex-1 p-6 space-y-4">
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex flex-col min-h-[160px] max-h-80">
+                              <div className="px-4 py-2 bg-slate-200/50 border-b border-slate-200 flex justify-between items-center shrink-0">
+                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Descrição do Procedimento</span>
+                                <span className="text-[8px] font-black text-emerald-600 animate-pulse">ROLE ABAIXO PARA LER TUDO ↓</span>
+                              </div>
+                              <div className="p-5 overflow-y-auto custom-scrollbar bg-white flex-1">
+                                {item.procedimento ? (
+                                  <p className="text-xs text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                                    {item.procedimento}
+                                  </p>
+                                ) : (
+                                  <p className="text-[10px] text-slate-300 uppercase font-black italic text-center py-8">Sem descrição de procedimento registrada neste protocolo.</p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <button 
+                              onClick={() => handleSelectHistory(item)}
+                              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] shadow-lg shadow-slate-900/10 active:scale-[0.98] transition-all hover:bg-emerald-600"
+                            >
+                              Utilizar este Protocolo
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Visualização de Índice Alfabético (Grid) */
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar animate-in zoom-in-95 duration-300 bg-white">
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                    <button 
+                      onClick={() => { setHistoryLetter(' '); setHistorySearch(''); }}
+                      className="aspect-square rounded-[24px] bg-indigo-600 text-white flex flex-col items-center justify-center gap-1 shadow-xl shadow-indigo-100 hover:scale-105 active:scale-95 transition-all group"
+                    >
+                      <span className="text-sm font-black group-hover:scale-110 transition-transform">TDS</span>
+                      <span className="text-[7px] font-bold uppercase opacity-60">Geral</span>
+                    </button>
+                    {alphabet.map(letter => {
+                      const hasItems = taskDictionary.some(t => t.titulo.toUpperCase().startsWith(letter));
+                      return (
+                        <button 
+                          key={letter}
+                          disabled={!hasItems}
+                          onClick={() => { setHistoryLetter(letter); setHistorySearch(''); }}
+                          className={`aspect-square rounded-[24px] flex flex-col items-center justify-center transition-all ${
+                            hasItems 
+                              ? 'bg-white border-2 border-indigo-50 text-indigo-600 shadow-sm hover:border-indigo-400 hover:scale-110 active:scale-90 cursor-pointer' 
+                              : 'bg-slate-50 text-slate-200 border-transparent cursor-not-allowed opacity-40'
+                          }`}
+                        >
+                          <span className="text-xl font-black">{letter}</span>
+                          {hasItems && (
+                            <span className="text-[7px] font-black text-indigo-300 mt-1 uppercase">
+                              {taskDictionary.filter(t => t.titulo.toUpperCase().startsWith(letter)).length} itens
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="mt-12 p-8 bg-amber-50 rounded-[40px] border border-amber-100 text-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-100/50 rounded-full -mr-12 -mt-12"></div>
+                    <span className="text-3xl">💡</span>
+                    <h4 className="text-amber-800 font-black text-xs uppercase tracking-widest mt-4 mb-2">Dica de Gestão</h4>
+                    <p className="text-[10px] font-bold text-amber-700/70 uppercase tracking-widest leading-relaxed">
+                      Selecione uma letra para ver todos os procedimentos salvos.<br/>
+                      As tarefas já cadastradas aparecem aqui para evitar duplicidade.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 bg-slate-50 border-t border-slate-100 text-center shrink-0">
+               <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">Módulo de Padronização Operacional OviManager</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isExecModalOpen && currentManejo && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-hidden">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-xl animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between bg-emerald-50/50 rounded-t-[32px]">
               <div><h3 className="text-xl font-black text-emerald-900 uppercase">Concluir Manejo</h3><p className="text-[10px] font-black text-emerald-600 uppercase">Finalização da tarefa</p></div>
               <button onClick={() => setIsExecModalOpen(false)} className="w-10 h-10 bg-white border border-emerald-100 rounded-full flex items-center justify-center">✕</button>
