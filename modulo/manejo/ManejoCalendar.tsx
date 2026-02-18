@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Manejo, StatusManejo, Recorrencia, RecorrenciaConfig } from '../../types';
-import { getLocalDateString, addDaysLocal, parseLocalDate } from '../../utils';
+import { getLocalDateString, addDaysLocal, parseLocalDate, formatBrazilianDate } from '../../utils';
 
 interface ManejoCalendarProps {
   manejos: Manejo[];
@@ -10,72 +10,38 @@ interface ManejoCalendarProps {
 const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   
   const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const dayLabels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
   const today = getLocalDateString();
 
   const projections = useMemo(() => {
     const list: any[] = [];
-    
     manejos.forEach(m => {
-      // 1. A tarefa original sempre entra
       list.push({ ...m, date: m.dataPlanejada.split('T')[0], isProj: false });
+      if (m.recorrencia !== Recorrencia.NENHUMA && m.status !== StatusManejo.PENDENTE) return; // Só projeta se pendente ou futuro
       
-      // 2. Se for recorrente e não estiver concluída, geramos as projeções virtuais
-      if (m.recorrencia !== Recorrencia.NENHUMA && m.status !== StatusManejo.CONCLUIDO) {
+      if (m.recorrencia !== Recorrencia.NENHUMA) {
         const config: RecorrenciaConfig = m.recorrenciaConfig || {};
         let current = m.dataPlanejada.split('T')[0];
-        const limite = config.limiteRepeticoes || 50; // Projeta até 50 ocorrências se for "infinito" para não travar o browser
+        const limite = 30; // Projeta 30 dias pra frente no máximo para mobile performance
         
         for (let i = 1; i <= limite; i++) {
           let next = '';
-          
-          if (m.recorrencia === Recorrencia.DIARIA) {
-            const step = config.intervalo || 1;
-            next = addDaysLocal(current, step);
-          } 
+          if (m.recorrencia === Recorrencia.DIARIA) next = addDaysLocal(current, config.intervalo || 1);
           else if (m.recorrencia === Recorrencia.SEMANAL) {
-            const diasSelecionados = config.diasSemana || [];
-            if (diasSelecionados.length === 0) {
-              next = addDaysLocal(current, 7);
-            } else {
-              // Encontra o próximo dia da semana disponível
-              let tempDate = parseLocalDate(current);
-              if (tempDate) {
-                let found = false;
-                for (let d = 1; d <= 7; d++) {
-                  let check = new Date(tempDate);
-                  check.setDate(check.getDate() + d);
-                  if (diasSelecionados.includes(check.getDay())) {
-                    next = getLocalDateString(check);
-                    found = true;
-                    break;
-                  }
-                }
+            let tempDate = parseLocalDate(current);
+            if (tempDate) {
+              for (let d = 1; d <= 7; d++) {
+                let check = new Date(tempDate);
+                check.setDate(check.getDate() + d);
+                if ((config.diasSemana || []).includes(check.getDay())) { next = getLocalDateString(check); break; }
               }
             }
-          } 
-          else if (m.recorrencia === Recorrencia.MENSAL) {
-            let tempDate = parseLocalDate(current);
-            if (tempDate) {
-              tempDate.setMonth(tempDate.getMonth() + 1);
-              if (config.diaMes) tempDate.setDate(config.diaMes);
-              next = getLocalDateString(tempDate);
-            }
           }
-          else if (m.recorrencia === Recorrencia.ANUAL) {
-            let tempDate = parseLocalDate(current);
-            if (tempDate) {
-              tempDate.setFullYear(tempDate.getFullYear() + 1);
-              if (config.mesAnual !== undefined) tempDate.setMonth(config.mesAnual);
-              if (config.diaMes) tempDate.setDate(config.diaMes);
-              next = getLocalDateString(tempDate);
-            }
-          }
-          
-          if (next) {
+          if (next && next <= addDaysLocal(today, 90)) { // Limite de 3 meses de projeção
              list.push({ ...m, date: next, isProj: true });
              current = next;
           } else break;
@@ -83,98 +49,120 @@ const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
       }
     });
     return list;
-  }, [manejos]);
+  }, [manejos, today]);
 
-  const days = useMemo(() => {
+  const calendarGrid = useMemo(() => {
     const first = new Date(selectedYear, selectedMonth, 1).getDay();
     const last = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const grid = [];
     for (let i = 0; i < first; i++) grid.push(null);
     for (let i = 1; i <= last; i++) {
       const dateStr = `${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-      grid.push({ day: i, tasks: projections.filter(p => p.date === dateStr) });
+      grid.push({ day: i, date: dateStr, tasks: projections.filter(p => p.date === dateStr) });
     }
     return grid;
   }, [selectedMonth, selectedYear, projections]);
 
+  const tasksForSelectedDay = useMemo(() => {
+    return projections.filter(p => p.date === selectedDate);
+  }, [projections, selectedDate]);
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(selectedYear - 1); }
+    else setSelectedMonth(selectedMonth - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(selectedYear + 1); }
+    else setSelectedMonth(selectedMonth + 1);
+  };
+
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <div className="bg-slate-50 p-3 rounded-2xl flex justify-between items-center">
-        <div className="flex gap-4">
-          <button onClick={() => setSelectedMonth(m => m === 0 ? 11 : m - 1)} className="w-8 h-8 flex items-center justify-center hover:bg-white rounded-lg transition-all shadow-sm active:scale-90">◀</button>
-          <h3 className="text-xs font-black uppercase text-slate-800 min-w-[140px] text-center flex items-center justify-center gap-2">
-            <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
-            {months[selectedMonth]} {selectedYear}
+    <div className="flex flex-col h-full bg-slate-50 md:bg-white rounded-[32px] overflow-hidden">
+      {/* HEADER COMPACTO */}
+      <div className="bg-white p-4 md:p-6 border-b flex justify-between items-center shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+             <button onClick={handlePrevMonth} className="w-8 h-8 flex items-center justify-center hover:bg-white rounded-lg transition-all">◀</button>
+             <button onClick={handleNextMonth} className="w-8 h-8 flex items-center justify-center hover:bg-white rounded-lg transition-all">▶</button>
+          </div>
+          <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">
+            {months[selectedMonth]} <span className="text-indigo-600">{selectedYear}</span>
           </h3>
-          <button onClick={() => setSelectedMonth(m => m === 11 ? 0 : m + 1)} className="w-8 h-8 flex items-center justify-center hover:bg-white rounded-lg transition-all shadow-sm active:scale-90">▶</button>
         </div>
-        <div className="hidden sm:flex gap-4">
-           <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-emerald-500 rounded-full"></div><span className="text-[7px] font-black uppercase text-slate-400 tracking-tighter">Realizado</span></div>
-           <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></div><span className="text-[7px] font-black uppercase text-slate-400 tracking-tighter">Atrasado</span></div>
-           <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-indigo-400 rounded-full"></div><span className="text-[7px] font-black uppercase text-slate-400 tracking-tighter">Projeção</span></div>
-        </div>
+        <button onClick={() => setSelectedDate(today)} className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg active:scale-95 transition-all">Ir para Hoje</button>
       </div>
 
-      <div className="bg-white rounded-[32px] border border-slate-100 flex-1 overflow-hidden flex flex-col shadow-inner">
-        <div className="grid grid-cols-7 border-b bg-slate-50/50">
-          {dayLabels.map(l => <div key={l} className="p-3 text-center text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{l}</div>)}
-        </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
-          <div className="grid grid-cols-7 gap-2">
-            {days.map((d, i) => d ? (
-              <div 
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* CALENDÁRIO GRID */}
+        <div className="w-full md:w-[450px] p-4 md:p-6 bg-white border-r border-slate-100 shrink-0">
+          <div className="grid grid-cols-7 mb-2">
+            {dayLabels.map(l => <div key={l} className="text-center text-[10px] font-black text-slate-400 py-2">{l}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {calendarGrid.map((d, i) => d ? (
+              <button 
                 key={i} 
+                onClick={() => setSelectedDate(d.date)}
                 className={`
-                  relative min-h-[120px] p-2 rounded-2xl border transition-all duration-300 ease-out
-                  ${d.tasks.length > 0 
-                    ? 'bg-white border-slate-200 shadow-sm cursor-help hover:scale-[1.4] hover:z-[50] hover:shadow-2xl hover:border-indigo-300 hover:bg-white' 
-                    : 'bg-slate-50/30 border-transparent opacity-30'
-                  }
-                  ${d.day === parseInt(today.split('-')[2]) && selectedMonth === new Date().getMonth() ? 'ring-2 ring-indigo-500/20 bg-indigo-50/10' : ''}
+                  relative aspect-square flex flex-col items-center justify-center rounded-2xl transition-all border
+                  ${selectedDate === d.date ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200 z-10' : 'bg-white border-slate-100 text-slate-700 hover:bg-slate-50'}
+                  ${d.date === today && selectedDate !== d.date ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}
                 `}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <span className={`text-[10px] font-black ${d.day === parseInt(today.split('-')[2]) && selectedMonth === new Date().getMonth() ? 'text-indigo-600' : 'text-slate-800'}`}>
-                    {d.day}
-                  </span>
-                  {d.tasks.length > 0 && (
-                    <span className="w-4 h-4 bg-indigo-50 text-indigo-600 text-[8px] flex items-center justify-center rounded-full font-black">
-                      {d.tasks.length}
-                    </span>
-                  )}
-                </div>
+                <span className="text-xs font-black">{d.day}</span>
+                {d.tasks.length > 0 && (
+                  <div className="flex gap-0.5 mt-1">
+                    {d.tasks.slice(0, 3).map((t, idx) => (
+                      <div key={idx} className={`w-1 h-1 rounded-full ${t.status === StatusManejo.CONCLUIDO ? 'bg-emerald-400' : t.date < today ? 'bg-rose-400' : 'bg-amber-400'}`} />
+                    ))}
+                  </div>
+                )}
+              </button>
+            ) : <div key={i} className="aspect-square" />)}
+          </div>
 
-                <div className="space-y-1.5">
-                  {d.tasks.map((t, idx) => {
-                    const isOverdue = t.date < today && t.status === StatusManejo.PENDENTE;
-                    const isToday = t.date === today && t.status === StatusManejo.PENDENTE;
-                    const isDone = t.status === StatusManejo.CONCLUIDO;
-                    const isProj = t.isProj;
-
-                    return (
-                      <div key={idx} className={`
-                        px-2 py-1 rounded-lg border text-[7px] font-black uppercase leading-tight shadow-sm
-                        ${isDone ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 
-                          isOverdue ? 'bg-rose-500 text-white border-rose-600' :
-                          isProj ? 'bg-indigo-50 text-indigo-600 border-indigo-100 border-dashed' :
-                          isToday ? 'bg-amber-400 text-slate-900 border-amber-500' :
-                          'bg-slate-100 text-slate-500 border-slate-200'
-                        }
-                      `}>
-                        <div className="truncate">{t.titulo}</div>
-                        {isProj && <div className="text-[5px] opacity-60 mt-0.5">Automático</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : <div key={i} className="min-h-[120px] opacity-0" />)}
+          {/* Legenda Mobile */}
+          <div className="flex justify-around mt-6 pt-6 border-t border-slate-50">
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-emerald-500 rounded-full"></div><span className="text-[8px] font-black text-slate-400 uppercase">Realizado</span></div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-rose-500 rounded-full"></div><span className="text-[8px] font-black text-slate-400 uppercase">Atrasado</span></div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-amber-500 rounded-full"></div><span className="text-[8px] font-black text-slate-400 uppercase">Pendente</span></div>
           </div>
         </div>
+
+        {/* AGENDA DO DIA (FOCO MOBILE) */}
+        <div className="flex-1 bg-slate-50 md:bg-white overflow-y-auto custom-scrollbar p-5 md:p-8">
+           <div className="flex justify-between items-center mb-6">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Agenda: {formatBrazilianDate(selectedDate)}</h4>
+              <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black">{tasksForSelectedDay.length} TAREFAS</span>
+           </div>
+
+           <div className="space-y-3 pb-20 md:pb-0">
+              {tasksForSelectedDay.map((t, idx) => (
+                <div key={idx} className={`p-4 rounded-3xl border-2 flex items-center gap-4 transition-all ${t.status === StatusManejo.CONCLUIDO ? 'bg-white border-emerald-50' : t.date < today ? 'bg-white border-rose-100' : 'bg-white border-slate-100 shadow-sm'}`}>
+                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg ${t.status === StatusManejo.CONCLUIDO ? 'bg-emerald-50 text-emerald-600' : t.date < today ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                      {t.status === StatusManejo.CONCLUIDO ? '✓' : t.date < today ? '⚠️' : '📋'}
+                   </div>
+                   <div className="flex-1 min-w-0">
+                      <p className="font-black text-xs uppercase text-slate-800 truncate">{t.titulo}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
+                         {t.isProj ? '📌 Projeção Automática' : `🕒 ${t.horaPlanejada || '08:00'}h`}
+                      </p>
+                   </div>
+                   {t.status !== StatusManejo.CONCLUIDO && (
+                      <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg uppercase">Pendente</span>
+                   )}
+                </div>
+              ))}
+              {tasksForSelectedDay.length === 0 && (
+                <div className="py-20 text-center">
+                   <p className="text-4xl mb-4 opacity-20">🍃</p>
+                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Nenhuma tarefa agendada</p>
+                </div>
+              )}
+           </div>
+        </div>
       </div>
-      <style>{`
-        .cursor-help { cursor: zoom-in; }
-      `}</style>
     </div>
   );
 };

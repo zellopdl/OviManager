@@ -102,12 +102,16 @@ const App: React.FC = () => {
     setAnalysisSheep(s);
     setAnalyzing(true);
     setAnalysisText('');
+    
+    // TRADUÇÃO DE IDs PARA NOMES REAIS PARA A IA
     const breedName = breeds.find(b => b.id === s.racaId)?.nome || 'SRD';
+    const paddockName = paddocks.find(p => p.id === s.piqueteId)?.piquete || 'Área não definida';
+    
     try {
-      const res = await getSheepInsight(s, breedName);
+      const res = await getSheepInsight(s, breedName, paddockName);
       setAnalysisText(res || "Não foi possível gerar análise.");
     } catch (err) {
-      setAnalysisText("Erro de rede ao conectar com a IA.");
+      setAnalysisText("Erro ao conectar com a inteligência artificial.");
     } finally {
       setAnalyzing(false);
     }
@@ -153,7 +157,7 @@ const App: React.FC = () => {
     if (loading) return <div className="flex items-center justify-center py-40 animate-pulse"><div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div></div>;
     const safeSheep = sheep || [];
     switch (activeTab) {
-      case 'dashboard': return <Dashboard sheep={safeSheep} breeds={breeds} groups={groups} plans={breedingPlans} onRefresh={loadInitialData} />;
+      case 'dashboard': return <Dashboard sheep={safeSheep} breeds={breeds} groups={groups} paddocks={paddocks} plans={breedingPlans} onRefresh={loadInitialData} />;
       case 'charts': return <ChartsView sheep={safeSheep} breeds={breeds} groups={groups} />;
       case 'guia': return <KnowledgeAssistant />;
       case 'manejo': return <ManejoManager sheep={safeSheep} paddocks={paddocks} groups={groups} onRefreshSheep={loadInitialData} managerPassword={managerPassword} />;
@@ -207,10 +211,12 @@ const App: React.FC = () => {
       <div className="min-h-[80vh] flex flex-col">{renderContent()}</div>
       {analysisSheep && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden p-8">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden p-8 animate-in zoom-in-95">
             <h3 className="text-2xl font-black mb-4 uppercase">Análise IA: {analysisSheep.nome}</h3>
-            <div className="bg-indigo-50 p-6 rounded-2xl max-h-[50vh] overflow-y-auto custom-scrollbar italic text-sm">{analyzing ? "Consultando..." : analysisText}</div>
-            <button onClick={() => setAnalysisSheep(null)} className="w-full py-4 bg-slate-900 text-white rounded-2xl mt-6 uppercase font-black">Fechar</button>
+            <div className="bg-indigo-50 p-6 rounded-2xl max-h-[50vh] overflow-y-auto custom-scrollbar italic text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
+               {analyzing ? "Consultando inteligência biológica..." : analysisText}
+            </div>
+            <button onClick={() => setAnalysisSheep(null)} className="w-full py-4 bg-slate-900 text-white rounded-2xl mt-6 uppercase font-black tracking-widest active:scale-95 transition-all shadow-lg">Fechar</button>
           </div>
         </div>
       )}
