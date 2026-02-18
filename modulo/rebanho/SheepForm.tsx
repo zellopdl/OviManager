@@ -34,9 +34,40 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
     }
   }, [sheep]);
 
+  // Validação em tempo real (Tempo de digitação)
+  const validateField = (name: string, value: string) => {
+    const newErrors = { ...errors };
+    const cleanValue = value.trim().toUpperCase();
+
+    if (name === 'brinco') {
+      const isDuplicate = existingSheep.some(s => 
+        s.id !== sheep?.id && s.brinco.trim().toUpperCase() === cleanValue
+      );
+      if (isDuplicate && cleanValue !== '') {
+        newErrors.brinco = 'Este Brinco já está cadastrado!';
+      } else {
+        delete newErrors.brinco;
+      }
+    }
+
+    if (name === 'nome') {
+      const isDuplicate = existingSheep.some(s => 
+        s.id !== sheep?.id && s.nome.trim().toUpperCase() === cleanValue
+      );
+      if (isDuplicate && cleanValue !== '') {
+        newErrors.nome = 'Este Nome já está em uso!';
+      } else {
+        delete newErrors.nome;
+      }
+    }
+
+    setErrors(newErrors);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     let val: any = value;
+    
     if (type === 'number') val = value === '' ? 0 : Number(value);
     if (type === 'checkbox') val = (e.target as HTMLInputElement).checked;
     if (['brinco', 'nome', 'pai', 'mae'].includes(name)) val = value.toUpperCase();
@@ -47,15 +78,24 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
       if (name === 'sanidade' && val === Sanidade.OBITO) next.status = Status.OBITO;
       return next;
     });
+
+    // Dispara validação em tempo real
+    if (name === 'brinco' || name === 'nome') {
+      validateField(name, val);
+    }
   };
 
-  const validate = () => {
+  const validateOnSubmit = () => {
     const e: Record<string, string> = {};
-    if (!formData.brinco?.trim()) e.brinco = 'Obrigatório';
-    if (!formData.nome?.trim()) e.nome = 'Obrigatório';
+    if (!formData.brinco?.trim()) e.brinco = 'Campo obrigatório';
+    if (!formData.nome?.trim()) e.nome = 'Campo obrigatório';
     
+    // Revalidação final de duplicidade
     const bTrim = formData.brinco?.trim().toUpperCase();
-    if (existingSheep.some(s => s.id !== sheep?.id && s.brinco === bTrim)) e.brinco = 'Brinco já existe';
+    const nTrim = formData.nome?.trim().toUpperCase();
+    
+    if (existingSheep.some(s => s.id !== sheep?.id && s.brinco.trim().toUpperCase() === bTrim)) e.brinco = 'Brinco duplicado';
+    if (existingSheep.some(s => s.id !== sheep?.id && s.nome.trim().toUpperCase() === nTrim)) e.nome = 'Nome duplicado';
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -63,12 +103,14 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
+    if (validateOnSubmit()) {
       setIsSaving(true);
       try { await onSubmit(formData); } 
       finally { setIsSaving(false); }
     }
   };
+
+  const hasErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="max-w-5xl mx-auto animate-in zoom-in-95 duration-300 pb-20">
@@ -80,7 +122,13 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
           </div>
           <div className="flex gap-2 w-full md:w-auto">
             <button type="button" onClick={onCancel} className="flex-1 md:flex-none px-6 py-3 text-slate-400 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
-            <button type="submit" disabled={isSaving} className="flex-1 md:flex-none px-10 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all">
+            <button 
+              type="submit" 
+              disabled={isSaving || hasErrors} 
+              className={`flex-1 md:flex-none px-10 py-3 text-white font-black rounded-2xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all ${
+                hasErrors ? 'bg-slate-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+            >
               {isSaving ? 'Gravando...' : 'Salvar Ficha'}
             </button>
           </div>
@@ -95,13 +143,36 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Brinco / Identificador *</label>
-                  <input name="brinco" required className={`w-full p-4 bg-slate-50 border ${errors.brinco ? 'border-rose-400 ring-4 ring-rose-50' : 'border-slate-200'} rounded-2xl font-black text-sm uppercase transition-all`} value={formData.brinco} onChange={handleChange} placeholder="000" />
-                  {errors.brinco && <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase">{errors.brinco}</p>}
+                  <label className={`block text-[9px] font-black uppercase mb-2 ml-1 tracking-widest ${errors.brinco ? 'text-rose-500' : 'text-slate-400'}`}>
+                    Brinco / Identificador *
+                  </label>
+                  <input 
+                    name="brinco" 
+                    required 
+                    className={`w-full p-4 bg-slate-50 border rounded-2xl font-black text-sm uppercase transition-all ${
+                      errors.brinco ? 'border-rose-400 ring-4 ring-rose-50 text-rose-700' : 'border-slate-200 focus:border-emerald-500'
+                    }`} 
+                    value={formData.brinco} 
+                    onChange={handleChange} 
+                    placeholder="000" 
+                  />
+                  {errors.brinco && <p className="text-[9px] text-rose-500 font-bold mt-2 ml-1 uppercase animate-bounce">⚠️ {errors.brinco}</p>}
                 </div>
                 <div>
-                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Nome do Animal *</label>
-                  <input name="nome" required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-sm uppercase transition-all" value={formData.nome} onChange={handleChange} placeholder="EX: LUNA" />
+                  <label className={`block text-[9px] font-black uppercase mb-2 ml-1 tracking-widest ${errors.nome ? 'text-rose-500' : 'text-slate-400'}`}>
+                    Nome do Animal *
+                  </label>
+                  <input 
+                    name="nome" 
+                    required 
+                    className={`w-full p-4 bg-slate-50 border rounded-2xl font-black text-sm uppercase transition-all ${
+                      errors.nome ? 'border-rose-400 ring-4 ring-rose-50 text-rose-700' : 'border-slate-200 focus:border-emerald-500'
+                    }`} 
+                    value={formData.nome} 
+                    onChange={handleChange} 
+                    placeholder="EX: LUNA" 
+                  />
+                  {errors.nome && <p className="text-[9px] text-rose-500 font-bold mt-2 ml-1 uppercase animate-bounce">⚠️ {errors.nome}</p>}
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 ml-1 tracking-widest">Sexo</label>
@@ -147,7 +218,6 @@ const SheepForm: React.FC<SheepFormProps> = ({ sheep, breeds, suppliers, groups,
             </div>
           </div>
 
-          {/* Coluna Lateral de Alocação e Saúde */}
           <div className="space-y-6">
             <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl text-white space-y-6">
               <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.2em]">📍 Alocação Estratégica</h3>

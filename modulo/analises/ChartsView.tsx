@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
   BarChart, Bar, AreaChart, Area, ScatterChart, Scatter, ReferenceLine
 } from 'recharts';
-import { Sheep, Breed, Group, Status, Sanidade } from '../../types';
+import { Sheep, Breed, Group, Status, Sanidade, Sexo } from '../../types';
 
 interface ChartsViewProps {
   sheep: Sheep[];
@@ -14,6 +14,10 @@ interface ChartsViewProps {
 }
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#ef4444'];
+const GENDER_COLORS = {
+  macho: '#3b82f6', // Azul
+  femea: '#ec4899'  // Rosa
+};
 
 const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
   
@@ -26,19 +30,31 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
     }).filter(d => d.idadeDias >= 0 && d.idadeDias < 365);
   }, [sheep]);
 
-  // Dados para Distribuição por Grupo (SOLICITADO)
+  // Dados Avançados para Distribuição por Grupo (COM DIVISÃO POR SEXO)
   const activeByGroupData = useMemo(() => {
     const activeSheep = sheep.filter(s => s.status === Status.ATIVO);
-    const counts: Record<string, number> = {};
+    const totalActiveCount = activeSheep.length;
+    const counts: Record<string, { total: number, macho: number, femea: number }> = {};
     
     activeSheep.forEach(s => {
       const groupName = groups.find(g => g.id === s.grupoId)?.nome || 'SEM GRUPO';
-      counts[groupName] = (counts[groupName] || 0) + 1;
+      if (!counts[groupName]) {
+        counts[groupName] = { total: 0, macho: 0, femea: 0 };
+      }
+      counts[groupName].total++;
+      if (s.sexo === Sexo.MACHO) counts[groupName].macho++;
+      else counts[groupName].femea++;
     });
 
     return Object.entries(counts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+      .map(([name, stats]) => ({ 
+        name, 
+        macho: stats.macho,
+        femea: stats.femea,
+        total: stats.total,
+        percent: totalActiveCount > 0 ? ((stats.total / totalActiveCount) * 100).toFixed(1) : 0
+      }))
+      .sort((a, b) => b.total - a.total);
   }, [sheep, groups]);
 
   const famachaData = useMemo(() => {
@@ -134,36 +150,82 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
         </div>
       </div>
 
-      {/* SEÇÃO 2: CENSO E GRUPOS (SOLICITADO) */}
+      {/* SEÇÃO 2: CENSO E GRUPOS (ATUALIZADA) */}
       <div className="space-y-6">
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Censo e População Ativa</h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* GRÁFICO DE PIZZA POR GRUPO */}
+          {/* GRÁFICO DE BARRAS POR GRUPO E SEXO */}
           <div className="lg:col-span-2 bg-white p-8 rounded-[40px] border shadow-sm h-[400px] flex flex-col">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Animais Ativos por Grupo</h4>
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ativos por Grupo e Sexo</h4>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[#3b82f6]"></div>
+                  <span className="text-[8px] font-black text-slate-400 uppercase">Machos</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[#ec4899]"></div>
+                  <span className="text-[8px] font-black text-slate-400 uppercase">Fêmeas</span>
+                </div>
+              </div>
+            </div>
+            
             <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={activeByGroupData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={80}
-                    outerRadius={110}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {activeByGroupData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                <BarChart
+                  data={activeByGroupData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 80, left: 20, bottom: 5 }}
+                  barSize={24}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fontWeight: '900', fill: '#1e293b' }}
+                    width={100}
                   />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                </PieChart>
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-slate-800">
+                            <p className="text-[10px] font-black uppercase mb-2 border-b border-white/10 pb-1">{data.name}</p>
+                            <p className="text-[9px] font-bold text-blue-400">MACHOS: {data.macho}</p>
+                            <p className="text-[9px] font-bold text-pink-400">FÊMEAS: {data.femea}</p>
+                            <p className="text-[11px] font-black mt-2 text-emerald-400">TOTAL: {data.total} ({data.percent}%)</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="macho" stackId="a" fill={GENDER_COLORS.macho} radius={[0, 0, 0, 0]} />
+                  <Bar 
+                    dataKey="femea" 
+                    stackId="a" 
+                    fill={GENDER_COLORS.femea} 
+                    radius={[0, 4, 4, 0]} 
+                    label={{ 
+                      position: 'right', 
+                      content: (props: any) => {
+                        const { x, y, width, value, index } = props;
+                        const data = activeByGroupData[index];
+                        return (
+                          <text x={x + width + 10} y={y + 16} fill="#64748b" fontSize={10} fontWeight="900" textAnchor="start">
+                            {data.total} ({data.percent}%)
+                          </text>
+                        );
+                      }
+                    }} 
+                  />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
