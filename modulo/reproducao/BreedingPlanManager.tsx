@@ -6,7 +6,7 @@ import { breedingPlanService } from './breedingPlanService.ts';
 interface BreedingPlanManagerProps {
   sheep: Sheep[];
   groups: Group[];
-  onRefresh: ()void;
+  onRefresh: () => void;
   managerPassword?: string;
 }
 
@@ -22,13 +22,19 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
   const [passInput, setPassInput] = useState('');
   const [passError, setPassError] = useState(false);
 
-  const [newPlan, setNewPlan] = useState({ nome: '', dataInicio: new Date().toISOString().split('T')[0], reprodutorId: '' });
   const effectivePassword = managerPassword || localStorage.getItem('ovi_manager_pwd') || '1234';
 
   const loadPlans = async () => {
-    try { const data = await breedingPlanService.getAll(); setPlans(data); } 
-    catch (e) { console.error(e); } 
-    finally { setLoading(false); }
+    try { 
+      const data = await breedingPlanService.getAll(); 
+      setPlans(data); 
+    } 
+    catch (e) { 
+      console.error(e); 
+    } 
+    finally { 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { loadPlans(); }, []);
@@ -40,22 +46,12 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
     return found?.id || null;
   }, [groups]);
 
-  const reprodutorGroupId = useMemo(() => {
-    const found = (groups || []).find(g => g.nome.toUpperCase().trim() === 'REPRODUTOR');
-    return found?.id || null;
-  }, [groups]);
-
   const availableMatrizes = useMemo(() => {
     if (!vaziaGroupId) return [];
     const assignedIds = new Set<string>();
     plans.forEach(p => p.ovelhas?.forEach(o => assignedIds.add(o.eweId)));
     return sheep.filter(s => s.sexo === Sexo.FEMEA && s.status === Status.ATIVO && !s.prenha && !assignedIds.has(s.id) && s.grupoId === vaziaGroupId);
   }, [sheep, plans, vaziaGroupId]);
-
-  const availableReprodutores = useMemo(() => {
-    if (!reprodutorGroupId) return [];
-    return sheep.filter(s => s.sexo === Sexo.MACHO && s.status === Status.ATIVO && s.grupoId === reprodutorGroupId);
-  }, [sheep, reprodutorGroupId]);
 
   const handleAddEwe = async (eweId: string) => {
     if (!selectedPlanId) return;
@@ -73,15 +69,40 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
 
   const handleVerifyPassword = () => {
     if (passInput.trim() === effectivePassword.trim()) {
-      if (eweToUnlock) { setUnlockedEwes(prev => new Set(prev).add(eweToUnlock)); setEweToUnlock(null); setPassInput(''); }
-    } else { setPassError(true); setTimeout(() => setPassError(false), 1000); }
+      if (eweToUnlock) { 
+        setUnlockedEwes(prev => new Set(prev).add(eweToUnlock)); 
+        setEweToUnlock(null); 
+        setPassInput(''); 
+      }
+    } else { 
+      setPassError(true); 
+      setTimeout(() => setPassError(false), 1000); 
+    }
+  };
+
+  const handleCreatePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const nome = prompt("Nome da Nova Estação:");
+    if (!nome) return;
+    
+    try {
+      await breedingPlanService.create({
+        nome: nome.toUpperCase(),
+        dataInicioMonta: new Date().toISOString().split('T')[0],
+        status: 'em_monta'
+      });
+      await loadPlans();
+      onRefresh();
+    } catch (err) {
+      alert("Erro ao criar estação.");
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-4 md:p-6 rounded-[28px] border border-slate-200 shadow-sm">
         <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-slate-400">Estações Ativas</h3>
-        <button onClick={() => setIsCreating(true)} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-all">Nova Estação</button>
+        <button onClick={handleCreatePlan} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-all">Nova Estação</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -187,6 +208,20 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
                <button onClick={() => setSelectedPlanId(null)} className="px-10 py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all">Fechar</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modal Senha Desbloqueio (Matriz Finalizada) */}
+      {eweToUnlock && (
+        <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+           <div className={`bg-white w-full max-w-sm rounded-[32px] p-10 shadow-2xl border-2 transition-all ${passError ? 'border-rose-500 animate-shake' : 'border-slate-100'}`}>
+              <div className="text-center mb-8"><div className="w-16 h-16 bg-slate-100 text-slate-800 rounded-3xl flex items-center justify-center text-2xl mx-auto mb-4">🔐</div><h3 className="text-xl font-black text-slate-800 uppercase">Gerência</h3><p className="text-[10px] text-slate-400 uppercase font-bold mt-1">Alterar Matriz Finalizada</p></div>
+              <input autoFocus type="password" placeholder="••••" className="w-full p-5 bg-slate-50 border rounded-2xl font-black text-center text-2xl outline-none mb-8 tracking-[0.5em]" value={passInput} onChange={e => setPassInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleVerifyPassword()} />
+              <div className="flex gap-2">
+                 <button onClick={() => { setEweToUnlock(null); setPassInput(''); }} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px]">Cancelar</button>
+                 <button onClick={handleVerifyPassword} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg">Liberar</button>
+              </div>
+           </div>
         </div>
       )}
     </div>
