@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Manejo, Recorrencia, RecorrenciaConfig } from '../types';
+import { Manejo, Recorrencia, RecorrenciaConfig, StatusManejo } from '../types';
 import { addDaysLocal, parseLocalDate, formatBrazilianDate, getLocalDateString } from '../utils';
 
 interface ManejoCalendarProps {
@@ -8,7 +8,8 @@ interface ManejoCalendarProps {
 }
 
 interface ProjectedManejo extends Manejo {
-  projectedDate: string; // Formato YYYY-MM-DD
+  projectedDate: string;
+  isProjection: boolean;
 }
 
 const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
@@ -20,13 +21,10 @@ const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
   const dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   const calculateNextDateStr = (currentDateStr: string, recorrencia: Recorrencia, config: RecorrenciaConfig): string | null => {
-    if (recorrencia === Recorrencia.DIARIA) {
-      return addDaysLocal(currentDateStr, config.intervaloDiario || 1);
-    }
-    
+    // Fix: Updated 'intervaloDiario' to 'intervalo' to match RecorrenciaConfig interface
+    if (recorrencia === Recorrencia.DIARIA) return addDaysLocal(currentDateStr, config.intervalo || 1);
     const date = parseLocalDate(currentDateStr);
     if (!date) return null;
-
     if (recorrencia === Recorrencia.SEMANAL && config.diasSemana?.length) {
       for (let i = 1; i <= 7; i++) {
         const nextS = addDaysLocal(currentDateStr, i);
@@ -34,20 +32,13 @@ const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
         if (test && config.diasSemana.includes(test.getDay())) return nextS;
       }
     } else if (recorrencia === Recorrencia.MENSAL) {
-      const dayTarget = config.diasMes?.[0] || date.getDate();
+      // Fix: Updated 'diasMes?.[0]' to 'diaMes' to match RecorrenciaConfig interface
+      const dayTarget = config.diaMes || date.getDate();
       for (let i = 1; i <= 12; i++) {
         const nextM = new Date(date.getFullYear(), date.getMonth() + i, dayTarget, 12, 0, 0);
         const nextS = getLocalDateString(nextM);
         if (nextS > currentDateStr) return nextS;
       }
-    } else if (recorrencia === Recorrencia.ANUAL && config.mesesAnual?.length) {
-       for (let i = 1; i <= 24; i++) {
-         const nextM = new Date(date.getFullYear(), date.getMonth() + i, 1, 12, 0, 0);
-         if (config.mesesAnual.includes(nextM.getMonth())) {
-           const nextS = getLocalDateString(nextM);
-           if (nextS > currentDateStr) return nextS;
-         }
-       }
     }
     return null;
   };
@@ -55,35 +46,20 @@ const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
   const projections = useMemo(() => {
     const allProjections: ProjectedManejo[] = [];
     const yearStr = selectedYear.toString();
-
+    const todayStr = getLocalDateString();
     manejos.forEach(m => {
+      if (m.status === StatusManejo.CONCLUIDO) {
+        const dateOccurred = (m.dataExecucao || m.dataPlanejada).split('T')[0];
+        if (dateOccurred.startsWith(yearStr)) allProjections.push({ ...m, projectedDate: dateOccurred, isProjection: false });
+        return; 
+      }
       let currentStr = m.dataPlanejada.split('T')[0];
-      const dataInicio = m.recorrenciaConfig?.dataInicioReferencia || currentStr;
-      const duracao = m.recorrenciaConfig?.duracaoValor;
-      
-      let limiteStr: string | null = null;
-      if (duracao && duracao > 0) {
-        limiteStr = addDaysLocal(dataInicio, duracao);
-      }
-
-      // Adiciona a primeira ocorrência se estiver no ano selecionado e dentro do limite
-      if (currentStr.startsWith(yearStr)) {
-        if (!limiteStr || currentStr <= limiteStr) {
-          allProjections.push({ ...m, projectedDate: currentStr });
-        }
-      }
-
+      if (currentStr.startsWith(yearStr)) allProjections.push({ ...m, projectedDate: currentStr, isProjection: false });
       if (m.recorrencia !== Recorrencia.NENHUMA) {
         let iterations = 0;
         let nextStr = calculateNextDateStr(currentStr, m.recorrencia, m.recorrenciaConfig || {});
-        
-        while (nextStr && nextStr.startsWith(yearStr) && iterations < 366) {
-          // Verifica se a próxima ocorrência respeita a duração total
-          if (limiteStr && nextStr > limiteStr) {
-             break;
-          }
-
-          allProjections.push({ ...m, projectedDate: nextStr });
+        while (nextStr && nextStr.startsWith(yearStr) && iterations < 365) {
+          if (nextStr >= todayStr) allProjections.push({ ...m, projectedDate: nextStr, isProjection: true });
           nextStr = calculateNextDateStr(nextStr, m.recorrencia, m.recorrenciaConfig || {});
           iterations++;
         }
@@ -92,13 +68,11 @@ const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
     return allProjections.sort((a, b) => a.projectedDate.localeCompare(b.projectedDate));
   }, [manejos, selectedYear]);
 
-  const monthStats = useMemo(() => {
-    return months.map((_, idx) => {
-      const monthPrefix = `${selectedYear}-${String(idx + 1).padStart(2, '0')}`;
-      const monthProj = projections.filter(p => p.projectedDate.startsWith(monthPrefix));
-      return { month: idx, totalTasks: monthProj.length };
-    });
-  }, [projections, selectedYear]);
+  const monthStats = useMemo(() => months.map((_, idx) => {
+    const monthPrefix = `${selectedYear}-${String(idx + 1).padStart(2, '0')}`;
+    const monthProj = projections.filter(p => p.projectedDate.startsWith(monthPrefix));
+    return { month: idx, total: monthProj.length };
+  }), [projections, selectedYear]);
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(selectedYear, selectedMonth, 1);
@@ -114,64 +88,82 @@ const ManejoCalendar: React.FC<ManejoCalendarProps> = ({ manejos }) => {
   }, [selectedMonth, selectedYear, projections]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="lg:col-span-3 bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-             <div><h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Calendário de Manejo {selectedYear}</h2></div>
-             <div className="flex gap-2">
-               <button onClick={() => setSelectedYear(selectedYear - 1)} className="p-2 bg-slate-100 rounded-lg text-xs">◀</button>
-               <span className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-xs">{selectedYear}</span>
-               <button onClick={() => setSelectedYear(selectedYear + 1)} className="p-2 bg-slate-100 rounded-lg text-xs">▶</button>
-             </div>
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-            {monthStats.map((s, i) => (
-              <button key={i} onClick={() => setSelectedMonth(i)} className={`p-3 rounded-2xl border transition-all text-left ${selectedMonth === i ? 'bg-indigo-600 border-indigo-600 shadow-lg' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'}`}>
-                <p className={`text-[9px] font-black uppercase mb-1 ${selectedMonth === i ? 'text-indigo-200' : 'text-slate-400'}`}>{months[i].slice(0, 3)}</p>
-                <span className={`text-[10px] font-black ${selectedMonth === i ? 'text-white' : 'text-slate-800'}`}>{s.totalTasks} Eventos</span>
-              </button>
-            ))}
+    <div className="flex flex-col space-y-4 h-full max-h-[85vh]">
+      {/* Seletor de Meses Ultra Compacto */}
+      <div className="bg-white p-3 rounded-[24px] border border-slate-200 shadow-sm shrink-0">
+        <div className="flex justify-between items-center mb-3 px-2">
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">Agenda {selectedYear}</h2>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            <button onClick={() => setSelectedYear(selectedYear - 1)} className="p-1 px-2 hover:bg-white rounded-lg text-[10px] transition-all">◀</button>
+            <span className="px-2 text-slate-800 font-black text-[10px]">{selectedYear}</span>
+            <button onClick={() => setSelectedYear(selectedYear + 1)} className="p-1 px-2 hover:bg-white rounded-lg text-[10px] transition-all">▶</button>
           </div>
         </div>
-        <div className="bg-slate-900 text-white p-6 rounded-[32px] shadow-xl flex flex-col justify-center text-center">
-             <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Total no Ano</h3>
-             <p className="text-5xl font-black">{projections.length}</p>
+        <div className="grid grid-cols-6 sm:grid-cols-12 gap-1">
+          {monthStats.map((s, i) => (
+            <button 
+              key={i} 
+              onClick={() => setSelectedMonth(i)} 
+              className={`py-1.5 rounded-lg border transition-all text-center ${
+                selectedMonth === i ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-indigo-200'
+              }`}
+            >
+              <p className="text-[7px] font-black uppercase leading-none">{months[i].slice(0, 3)}</p>
+              <p className="text-[9px] font-black mt-0.5">{s.total}</p>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {dayLabels.map(label => (<div key={label} className="text-center text-[10px] font-black text-slate-500 uppercase">{label}</div>))}
-          </div>
+      {/* Grid de Dias com Elevador Independente */}
+      <div className="flex-1 bg-white rounded-[32px] border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-[400px]">
+        <div className="grid grid-cols-7 gap-1 p-4 bg-slate-50 border-b border-slate-100 shrink-0">
+          {dayLabels.map(label => (
+            <div key={label} className="text-center text-[8px] font-black text-slate-400 uppercase tracking-widest">{label}</div>
+          ))}
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 bg-white">
           <div className="grid grid-cols-7 gap-2">
             {calendarDays.map((d, i) => d ? (
-              <div key={i} onClick={() => d.tasks.length > 0 && setSelectedDayDetail(d)} className={`min-h-[80px] p-2 rounded-2xl border transition-all ${d.tasks.length > 0 ? 'bg-indigo-50 border-indigo-100 shadow-sm cursor-pointer' : 'bg-slate-50 border-transparent opacity-40'}`}>
-                <div className="flex justify-between items-start mb-1"><span className={`text-[11px] font-black ${d.tasks.length > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>{d.day}</span></div>
-                <div className="space-y-1">{d.tasks.slice(0, 2).map((t, idx) => (<div key={idx} className="bg-white px-1 py-0.5 rounded shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-slate-100 truncate text-[8px] font-black text-slate-600 uppercase">{t.titulo}</div>))}</div>
+              <div 
+                key={i} 
+                onClick={() => d.tasks.length > 0 && setSelectedDayDetail(d)} 
+                className={`min-h-[80px] md:min-h-[120px] p-2 rounded-xl border transition-all ${
+                  d.tasks.length > 0 ? 'bg-white border-slate-200 shadow-sm cursor-pointer hover:border-indigo-300' : 'bg-slate-50/50 border-transparent opacity-20'
+                }`}
+              >
+                <span className={`text-[10px] font-black ${d.tasks.length > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{d.day}</span>
+                <div className="mt-1 space-y-1">
+                  {d.tasks.slice(0, 2).map((t, idx) => (
+                    <div key={idx} className={`px-1 py-0.5 rounded border truncate text-[6px] font-black uppercase ${
+                      t.status === StatusManejo.CONCLUIDO ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'
+                    }`}>{t.titulo}</div>
+                  ))}
+                  {d.tasks.length > 2 && <div className="text-[6px] font-black text-indigo-400 uppercase pl-1">+ {d.tasks.length - 2}</div>}
+                </div>
               </div>
             ) : <div key={i} className="min-h-[80px]"></div>)}
           </div>
         </div>
       </div>
 
+      {/* Modal Detalhes */}
       {selectedDayDetail && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl animate-in zoom-in-95">
-            <div className="p-8 bg-indigo-600 text-white rounded-t-[32px] flex justify-between items-center">
-              <div><h3 className="text-xl font-black uppercase">{selectedDayDetail.day} {months[selectedMonth]}</h3></div>
-              <button onClick={() => setSelectedDayDetail(null)} className="text-2xl">✕</button>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl animate-in zoom-in-95 overflow-hidden">
+            <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+              <h3 className="text-lg font-black uppercase">{selectedDayDetail.day} de {months[selectedMonth]}</h3>
+              <button onClick={() => setSelectedDayDetail(null)} className="text-white opacity-50 hover:opacity-100">✕</button>
             </div>
-            <div className="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
+            <div className="p-6 space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar">
               {selectedDayDetail.tasks.map((task, idx) => (
-                <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <h4 className="font-black text-slate-800 uppercase text-sm">{task.titulo}</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Ref: {formatBrazilianDate(task.projectedDate)}</p>
+                <div key={idx} className="p-4 rounded-2xl border border-slate-100 bg-slate-50">
+                  <h4 className="font-black uppercase text-[10px] text-slate-800">{task.titulo}</h4>
+                  <p className="text-[9px] text-slate-400 mt-1 uppercase font-bold tracking-widest">{task.status}</p>
                 </div>
               ))}
             </div>
-            <div className="p-6 flex justify-center"><button onClick={() => setSelectedDayDetail(null)} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl text-xs uppercase tracking-widest">Fechar</button></div>
+            <div className="p-6"><button onClick={() => setSelectedDayDetail(null)} className="w-full py-3 bg-indigo-600 text-white font-black rounded-xl text-[10px] uppercase">Fechar</button></div>
           </div>
         </div>
       )}

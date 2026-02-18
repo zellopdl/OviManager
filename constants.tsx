@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const FAMACHA_OPTIONS = [
@@ -53,9 +52,9 @@ export const RECORRENCIA_OPTIONS = [
   { value: 'anual', label: 'Repetição Anual' },
 ];
 
-export const SUPABASE_SCHEMA_SQL = `-- SCRIPT DE ATUALIZAÇÃO OVIMANAGER v2.5 (Cronograma Cronológico)
+export const SUPABASE_SCHEMA_SQL = `-- SCRIPT DE ATUALIZAÇÃO OVIMANAGER v3.0
 
--- Tabelas Base:
+-- 1. Tabelas de Apoio
 CREATE TABLE IF NOT EXISTS public.piquetes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
@@ -84,6 +83,7 @@ CREATE TABLE IF NOT EXISTS public.grupos (
   nome TEXT UNIQUE NOT NULL
 );
 
+-- 2. Tabela Principal de Ovelhas
 CREATE TABLE IF NOT EXISTS public.ovelhas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   brinco TEXT UNIQUE NOT NULL,
@@ -107,27 +107,48 @@ CREATE TABLE IF NOT EXISTS public.ovelhas (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.manejos (
+-- 3. Histórico de Pesagem
+CREATE TABLE IF NOT EXISTS public.historico_peso (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  titulo TEXT NOT NULL,
-  tipo TEXT NOT NULL,
-  recorrencia TEXT DEFAULT 'nenhuma',
-  recorrencia_config JSONB DEFAULT '{}'::jsonb,
-  grupo_id UUID REFERENCES public.grupos(id) ON DELETE SET NULL,
-  data_planejada DATE DEFAULT CURRENT_DATE,
-  hora_planejada TIME DEFAULT '08:00',
-  data_execucao DATE,
-  colaborador TEXT,
-  status TEXT DEFAULT 'pendente',
-  procedimento TEXT,
-  observacoes TEXT,
+  ovelha_id UUID REFERENCES public.ovelhas(id) ON DELETE CASCADE,
+  peso NUMERIC NOT NULL,
+  data TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 4. Estações de Monta (Lotes)
+CREATE TABLE IF NOT EXISTS public.lotes_monta (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome TEXT NOT NULL,
+  data_inicio_monta DATE NOT NULL,
+  status TEXT DEFAULT 'em_monta',
+  reprodutor_id UUID REFERENCES public.ovelhas(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.manejo_ovelhas (
+-- 5. Ovelhas nos Lotes (Vínculos Individuais)
+CREATE TABLE IF NOT EXISTS public.lote_ovelhas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  manejo_id UUID REFERENCES public.manejos(id) ON DELETE CASCADE,
+  lote_id UUID REFERENCES public.lotes_monta(id) ON DELETE CASCADE,
   ovelha_id UUID REFERENCES public.ovelhas(id) ON DELETE CASCADE,
-  UNIQUE(manejo_id, ovelha_id)
+  tentativas INTEGER DEFAULT 1,
+  ciclo1_resultado TEXT DEFAULT 'pendente',
+  ciclo2_resultado TEXT DEFAULT 'pendente',
+  ciclo3_resultado TEXT DEFAULT 'pendente',
+  finalizado BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 6. Tabela de Reprodução (Confirmadas)
+CREATE TABLE IF NOT EXISTS public.reproducao (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  matriz_id UUID REFERENCES public.ovelhas(id) ON DELETE CASCADE,
+  reprodutor_id UUID REFERENCES public.ovelhas(id) ON DELETE SET NULL,
+  data_cobertura DATE NOT NULL,
+  data_previsao_parto DATE,
+  data_parto_real DATE,
+  status TEXT DEFAULT 'confirmada',
+  lote_origem_id UUID REFERENCES public.lotes_monta(id) ON DELETE SET NULL,
+  observacoes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 `;

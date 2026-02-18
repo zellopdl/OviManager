@@ -1,354 +1,321 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { BreedingPlan, Sheep, Sexo, BreedingCycleResult, BreedingPlanEwe, Status } from '../types';
+import { BreedingPlan, Sheep, Group, Sexo, Status, BreedingCycleResult } from '../types';
 import { breedingPlanService } from '../services/breedingPlanService';
-import { sheepService } from '../services/sheepService';
 
 interface BreedingPlanManagerProps {
   sheep: Sheep[];
+  groups: Group[];
   onRefresh: () => void;
 }
 
-const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, onRefresh }) => {
+const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups, onRefresh }) => {
   const [plans, setPlans] = useState<BreedingPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [nameWarning, setNameWarning] = useState<string | null>(null);
-  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
-  const [isProcessingId, setIsProcessingId] = useState<string | null>(null);
-  
-  const [assignRamData, setAssignRamData] = useState<{planId: string, eweId: string, reprodutorId: string, date: string} | null>(null);
-  const [moveEweData, setMoveEweData] = useState<{planId: string, eweId: string} | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
-  const [newPlan, setNewPlan] = useState({
+  const [formData, setFormData] = useState({
     nome: '',
-    dataSincronizacao: new Date().toISOString().split('T')[0],
-    dataInicioMonta: new Date().toISOString().split('T')[0],
-    selectedEwes: [] as string[]
+    reprodutorId: '',
+    dataInicioMonta: new Date().toISOString().split('T')[0]
   });
 
   const loadPlans = async () => {
+    setLoading(true);
     try {
       const data = await breedingPlanService.getAll();
-      setPlans(data || []);
-    } catch (e) { 
-      console.error("Erro ao carregar planos:", e); 
-    } finally {
-      setLoading(false);
-    }
+      setPlans(data);
+    } catch (e) { console.error("Erro ao carregar planos:", e); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { loadPlans(); }, []);
 
+  const selectedPlan = useMemo(() => 
+    plans.find(p => p.id === selectedPlanId), 
+    [plans, selectedPlanId]
+  );
+
   const assignedEweIds = useMemo(() => {
     const ids = new Set<string>();
-    plans.forEach(plan => {
-      if (plan.ovelhas) {
-        plan.ovelhas.forEach(ewe => {
-          ids.add(ewe.eweId);
-        });
-      }
-    });
+    plans.forEach(p => p.ovelhas?.forEach(o => ids.add(o.eweId)));
     return ids;
   }, [plans]);
 
-  const availableMatrizes = useMemo(() => 
-    sheep.filter(s => 
+  const availableMatrizes = useMemo(() => {
+    const vaziasGroup = groups.find(g => ['VAZIAS', 'VAZIA', 'MATRIZES VAZIAS'].includes(g.nome.toUpperCase().trim()));
+    return sheep.filter(s => 
       s.sexo === Sexo.FEMEA && 
       s.status === Status.ATIVO && 
       !s.prenha &&
-      !assignedEweIds.has(s.id)
-    ), 
-  [sheep, assignedEweIds]);
-  
-  const reprodutores = useMemo(() => 
-    sheep.filter(s => s.sexo === Sexo.MACHO && s.status === Status.ATIVO), 
-  [sheep]);
-
-  const handleNameChange = (val: string) => {
-    const name = val.toUpperCase();
-    setNewPlan({ ...newPlan, nome: name });
-    const isDuplicate = plans.some(p => p.nome.trim().toUpperCase() === name.trim());
-    if (isDuplicate && name.trim() !== '') {
-      setNameWarning("⚠️ Já existe um lote com este nome!");
-    } else {
-      setNameWarning(null);
-    }
-  };
+      !assignedEweIds.has(s.id) && 
+      (vaziasGroup ? s.grupoId === vaziasGroup.id : true)
+    );
+  }, [sheep, assignedEweIds, groups]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (nameWarning) return;
-    if (newPlan.selectedEwes.length === 0) {
-      alert("Selecione ao menos uma matriz para o lote.");
-      return;
-    }
-    const ovelhasPayload: BreedingPlanEwe[] = newPlan.selectedEwes.map(id => ({
-      eweId: id,
-      cioDetectado: false,
-      tentativas: 1,
-      resultados: { 1: BreedingCycleResult.PENDENTE, 2: BreedingCycleResult.PENDENTE, 3: BreedingCycleResult.PENDENTE },
-      finalizado: false
-    }));
     try {
-      setLoading(true);
-      await breedingPlanService.create({
-        nome: newPlan.nome,
-        dataSincronizacao: newPlan.dataSincronizacao,
-        dataInicioMonta: newPlan.dataInicioMonta,
-        ovelhas: ovelhasPayload
-      });
-      setIsFormOpen(false);
-      resetNewPlanForm();
+      await breedingPlanService.create({ ...formData, status: 'em_monta', ovelhas: [] });
+      setIsCreating(false);
+      setFormData({ nome: '', reprodutorId: '', dataInicioMonta: new Date().toISOString().split('T')[0] });
       await loadPlans();
       onRefresh();
-    } catch (e: any) { 
-      alert("Erro ao criar plano: " + (e.message || "Erro desconhecido")); 
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { alert("Erro ao criar lote."); }
   };
 
-  const resetNewPlanForm = () => {
-    setNewPlan({ nome: '', dataSincronizacao: new Date().toISOString().split('T')[0], dataInicioMonta: new Date().toISOString().split('T')[0], selectedEwes: [] });
-    setNameWarning(null);
+  const handleAddEwe = async (eweId: string) => {
+    if (!selectedPlanId || !selectedPlan) return;
+    const newEwe: any = {
+      eweId, cioDetectado: false, tentativas: 1, finalizado: false,
+      resultados: { 1: BreedingCycleResult.PENDENTE, 2: BreedingCycleResult.PENDENTE, 3: BreedingCycleResult.PENDENTE }
+    };
+    await breedingPlanService.update(selectedPlanId, { ovelhas: [...(selectedPlan.ovelhas || []), newEwe] });
+    await loadPlans();
   };
 
-  const togglePlanExpansion = (id: string) => {
-    const newSet = new Set(expandedPlanIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setExpandedPlanIds(newSet);
-  };
-
-  const handleDeletePlan = async (plan: BreedingPlan) => {
-    if (plan.ovelhas && plan.ovelhas.length > 0) {
-      alert("Este lote não pode ser excluído pois ainda contém animais. Remova todos os animais individualmente primeiro.");
-      return;
-    }
-    if (!window.confirm(`Deseja realmente EXCLUIR o lote vazio "${plan.nome}"? Esta ação não pode ser desfeita.`)) return;
-    setIsProcessingId(plan.id);
-    try {
-      await breedingPlanService.delete(plan.id);
-      setPlans(prev => prev.filter(p => p.id !== plan.id));
-      const newExp = new Set(expandedPlanIds);
-      newExp.delete(plan.id);
-      setExpandedPlanIds(newExp);
-      onRefresh();
-    } catch (e: any) {
-      alert("Erro ao excluir lote do servidor.");
-    } finally {
-      setIsProcessingId(null);
-    }
-  };
-
-  const handleRemoveEweFromPlan = async (planId: string, eweId: string) => {
-    const ewe = sheep.find(s => s.id === eweId);
-    if (!window.confirm(`Deseja remover "${ewe?.nome}" deste lote? Ela voltará a ficar disponível para novos agrupamentos.`)) return;
-    setIsProcessingId(planId);
-    try {
-      await breedingPlanService.removeEwe(planId, eweId);
-      await loadPlans();
-      onRefresh();
-    } catch (e: any) {
-      alert("Erro ao remover animal: " + e.message);
-    } finally {
-      setIsProcessingId(null);
-    }
-  };
-
-  const handleMoveEwe = async (targetPlanId: string) => {
-    if (!moveEweData) return;
-    try {
-      await breedingPlanService.moveEwe(moveEweData.planId, targetPlanId, moveEweData.eweId);
-      setMoveEweData(null);
-      await loadPlans();
-      onRefresh();
-    } catch (e: any) {
-      alert("Erro ao mover animal: " + e.message);
-    }
-  };
-
-  const handleToggleCio = async (planId: string, eweId: string, detected: boolean) => {
-    try {
-      await breedingPlanService.confirmHeat(planId, eweId, detected);
-      if (detected) {
-        setAssignRamData({ planId, eweId, reprodutorId: '', date: new Date().toISOString().split('T')[0] });
-      } else {
-        setAssignRamData(null);
-      }
-      loadPlans();
-    } catch (e: any) { 
-      alert("Erro ao atualizar cio: " + e.message); 
-    }
-  };
-
-  const handleSaveRam = async () => {
-    if (!assignRamData || !assignRamData.reprodutorId || !assignRamData.date) {
-      alert("Selecione o reprodutor e a data da monta.");
-      return;
-    }
-    try {
-      await breedingPlanService.assignRam(assignRamData.planId, assignRamData.eweId, assignRamData.reprodutorId, assignRamData.date);
-      setAssignRamData(null);
-      loadPlans();
-    } catch (e: any) { 
-      alert("Erro ao salvar reprodutor: " + e.message); 
-    }
-  };
-
-  const handleUpdateCycle = async (planId: string, eweId: string, cycle: 1 | 2 | 3, result: BreedingCycleResult) => {
-    try {
-      await breedingPlanService.updateEweResult(planId, eweId, cycle, result);
-      loadPlans();
-      onRefresh();
-    } catch (e: any) { 
-      alert("Erro ao atualizar ciclo: " + e.message); 
-    }
-  };
-
-  const handleDiscard = async (planId: string, eweId: string) => {
-    if (window.confirm("Confirmar descarte definitivo desta matriz?")) {
+  const handleRemoveEwe = async (eweId: string) => {
+    if (!selectedPlanId) return;
+    if (confirm("Remover esta matriz do lote? Ela voltará para o estado 'Vazia' e ficará disponível para outros lotes.")) {
       try {
-        await breedingPlanService.discardEwe(planId, eweId);
-        loadPlans();
+        await breedingPlanService.removeEwe(selectedPlanId, eweId);
+        // Atualização local imediata para dar feedback ao usuário
+        setPlans(prev => prev.map(p => {
+          if (p.id === selectedPlanId) {
+            return { ...p, ovelhas: p.ovelhas.filter(o => o.eweId !== eweId) };
+          }
+          return p;
+        }));
+        await loadPlans();
         onRefresh();
-      } catch (e: any) { 
-        alert("Erro ao descartar: " + e.message); 
+      } catch (err) {
+        alert("Erro ao remover animal do lote. Tente novamente.");
       }
     }
   };
+
+  const handleDeletePlan = async (id: string) => {
+    if (confirm("Excluir este lote? Todos os animais vinculados voltarão a ficar disponíveis como 'Vazias'.")) {
+      try {
+        await breedingPlanService.delete(id);
+        setSelectedPlanId(null);
+        await loadPlans();
+        onRefresh();
+      } catch (err) {
+        alert("Erro ao excluir lote. Verifique se existem vínculos ativos.");
+      }
+    }
+  };
+
+  const handleUpdateResult = async (eweId: string, cycle: number, result: BreedingCycleResult) => {
+    if (!selectedPlanId) return;
+    await breedingPlanService.updateEweResult(selectedPlanId, eweId, cycle, result);
+    await loadPlans();
+    onRefresh();
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Lotes de Monta e Observação</h2>
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Organização de Lotes e Registro de Cio Individual</p>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Estações de Monta</h3>
+          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Controle de ciclos e prenhez</p>
         </div>
-        {availableMatrizes.length > 0 ? (
-          <button onClick={() => { resetNewPlanForm(); setIsFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-black shadow-lg shadow-indigo-900/10 transition-all flex items-center gap-2 text-[10px] uppercase tracking-widest">
-            ➕ Criar Novo Lote
-          </button>
-        ) : (
-          <div className="bg-slate-50 border border-slate-100 px-4 py-2 rounded-xl flex items-center gap-2">
-            <span className="text-[14px]">🚫</span>
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sem matrizes livres para novos lotes</span>
+        <button onClick={() => setIsCreating(true)} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">Nova Estação</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {plans.map(plan => (
+          <div key={plan.id} className="bg-white p-6 rounded-[40px] border border-slate-200 shadow-sm group hover:border-indigo-300 transition-all flex flex-col justify-between h-56">
+            <div>
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">📋</div>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                  plan.status === 'em_monta' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {plan.status === 'em_monta' ? 'Em Andamento' : 'Concluído'}
+                </span>
+              </div>
+              <h4 className="font-black text-slate-800 uppercase text-xs mb-1">{plan.nome}</h4>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Início: {new Date(plan.dataInicioMonta).toLocaleDateString()}</p>
+            </div>
+            
+            <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-700">{plan.ovelhas?.length || 0}</span>
+                <span className="text-[7px] font-black text-slate-400 uppercase">Matrizes</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setSelectedPlanId(plan.id)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase shadow-md active:scale-95">Gerenciar</button>
+                <button onClick={() => handleDeletePlan(plan.id)} className="p-2 text-slate-300 hover:text-rose-500">🗑️</button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {plans.length === 0 && (
+          <div className="col-span-full py-20 text-center bg-white border-2 border-dashed border-slate-200 rounded-[40px]">
+            <p className="text-slate-300 font-black text-xs uppercase tracking-widest">Nenhuma estação de monta cadastrada</p>
           </div>
         )}
       </div>
 
-      {isFormOpen && (
-        <div className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-xl animate-in zoom-in-95 duration-300">
-          <form onSubmit={handleCreatePlan} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {isCreating && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-xl font-black text-slate-800 uppercase mb-6">Nova Estação de Monta</h3>
+            <form onSubmit={handleCreatePlan} className="space-y-4">
               <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest">Nome do Lote *</label>
-                <input required type="text" className={`w-full p-2.5 bg-slate-50 border ${nameWarning ? 'border-amber-400 focus:ring-amber-500' : 'border-slate-200 focus:ring-indigo-500'} rounded-xl font-bold text-sm outline-none transition-all`} value={newPlan.nome} onChange={e => handleNameChange(e.target.value)} placeholder="Ex: LOTE PIQUETE 04 - VERÃO" />
-                {nameWarning && <p className="text-[9px] text-amber-600 font-black uppercase mt-1 tracking-widest animate-pulse">{nameWarning}</p>}
+                <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5">Identificação da Estação</label>
+                <input required autoFocus className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold uppercase text-sm" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value.toUpperCase()})} placeholder="EX: ESTAÇÃO PRIMAVERA 2024" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><label className="block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest">Sincronização (Opcional)</label><input type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" value={newPlan.dataSincronizacao} onChange={e => setNewPlan({...newPlan, dataSincronizacao: e.target.value})} /></div>
-                <div><label className="block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest">Data Formação *</label><input required type="date" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs" value={newPlan.dataInicioMonta} onChange={e => setNewPlan({...newPlan, dataInicioMonta: e.target.value})} /></div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5">Data de Início (Colocação do Macho)</label>
+                <input type="date" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm" value={formData.dataInicioMonta} onChange={e => setFormData({...formData, dataInicioMonta: e.target.value})} />
               </div>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest flex justify-between items-center">Disponíveis para Agrupamento ({availableMatrizes.length}) <button type="button" onClick={() => setNewPlan({...newPlan, selectedEwes: availableMatrizes.map(m => m.id)})} className="text-indigo-600 hover:underline">Selecionar Todas</button></h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-h-64 overflow-y-auto custom-scrollbar p-1">
-                {availableMatrizes.length === 0 ? (
-                  <div className="col-span-full py-8 text-center bg-white rounded-xl border border-dashed border-slate-200"><p className="text-[10px] font-black text-slate-300 uppercase">Todas as matrizes já estão em lotes.</p></div>
-                ) : (
-                  availableMatrizes.map(m => (
-                    <label key={m.id} className={`flex flex-col items-center justify-center text-center p-3 rounded-xl border cursor-pointer transition-all ${newPlan.selectedEwes.includes(m.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.02]' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}>
-                      <input type="checkbox" className="hidden" checked={newPlan.selectedEwes.includes(m.id)} onChange={e => { const selected = e.target.checked ? [...newPlan.selectedEwes, m.id] : newPlan.selectedEwes.filter(id => id !== m.id); setNewPlan({...newPlan, selectedEwes: selected}); }} />
-                      <span className="text-[9px] font-black uppercase truncate w-full mb-0.5">{m.nome}</span>
-                      <span className={`text-[8px] font-bold tracking-widest ${newPlan.selectedEwes.includes(m.id) ? 'text-indigo-200' : 'text-slate-400'}`}>#{m.brinco}</span>
-                    </label>
-                  ))
-                )}
+              <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setIsCreating(false)} className="flex-1 py-3 text-slate-400 font-black uppercase text-[10px]">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Confirmar Lote</button>
               </div>
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
-              <button type="button" onClick={() => { setIsFormOpen(false); resetNewPlanForm(); }} className="px-5 py-2.5 text-slate-400 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
-              <button type="submit" disabled={!!nameWarning || !newPlan.nome.trim()} className={`px-8 py-2.5 text-white font-black rounded-xl shadow-lg uppercase text-[10px] tracking-widest active:scale-95 transition-all ${!!nameWarning || !newPlan.nome.trim() ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-slate-900'}`} >Salvar Lote</button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
-      {loading ? (
-        <div className="py-24 text-center">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Carregando lotes...</p>
-        </div>
-      ) : plans.length === 0 ? (
-        <div className="bg-slate-100/50 border-2 border-dashed border-slate-200 rounded-[32px] p-16 text-center">
-          <div className="text-4xl mb-4 opacity-30">📋</div>
-          <p className="text-slate-400 font-black text-xs uppercase tracking-widest">Nenhum lote de observação ativo.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {plans.map(plan => {
-            const isExpanded = expandedPlanIds.has(plan.id);
-            const isProcessing = isProcessingId === plan.id;
-            const isEmpty = !plan.ovelhas || plan.ovelhas.length === 0;
-            return (
-              <div key={plan.id} className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
-                <div onClick={() => togglePlanExpansion(plan.id)} className={`cursor-pointer p-4 flex justify-between items-center transition-colors ${isExpanded ? 'bg-slate-900 text-white' : 'bg-white text-slate-800 hover:bg-slate-50'}`} >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${isExpanded ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-400'}`}> {isProcessing ? '⏳' : '📋'} </div>
-                    <div>
-                      <h3 className={`font-black text-sm uppercase tracking-tight ${isExpanded ? 'text-white' : 'text-slate-800'}`}> {plan.nome} </h3>
-                      <p className={`text-[9px] font-black uppercase tracking-widest ${isExpanded ? 'text-indigo-300' : 'text-slate-400'}`}> {(plan.ovelhas || []).length} Matrizes • Criado em {plan.created_at ? new Date(plan.created_at).toLocaleDateString() : '-'} </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {isEmpty && (
-                      <button onClick={(e) => { e.stopPropagation(); handleDeletePlan(plan); }} className={`p-2 rounded-lg transition-all ${isExpanded ? 'bg-rose-900/30 text-rose-400 hover:bg-rose-900/50' : 'bg-rose-50 text-rose-500 hover:bg-rose-100'}`} title="Excluir Lote Vazio"> 🗑️ </button>
-                    )}
-                    <span className={`text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}> {isExpanded ? '▲' : '▼'} </span>
+      {selectedPlan && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-6xl h-[90vh] rounded-[40px] flex flex-col shadow-2xl animate-in slide-in-from-bottom-6 duration-500 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-indigo-100">🐑</div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{selectedPlan.nome}</h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Início: {new Date(selectedPlan.dataInicioMonta).toLocaleDateString()}</span>
+                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                    <span className="text-[10px] text-indigo-600 font-black uppercase">{selectedPlan.ovelhas?.length || 0} Matrizes no Lote</span>
                   </div>
                 </div>
-                {isExpanded && (
-                  <div className="p-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-300">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
-                            <th className="pb-3 pl-2">Matriz</th>
-                            <th className="pb-3 text-center">Detecção de Cio</th>
-                            <th className="pb-3 text-center">Macho & Data</th>
-                            <th className="pb-3 text-center">Ciclos</th>
-                            <th className="pb-3 text-center">Status</th>
-                            <th className="pb-3 text-right pr-2">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {(plan.ovelhas || []).map(item => {
-                            const matriz = sheep.find(s => s.id === item.eweId);
-                            const reprodutor = sheep.find(s => s.id === item.reprodutorId);
-                            const isAssigning = assignRamData?.eweId === item.eweId && assignRamData?.planId === plan.id;
-                            const isMoving = moveEweData?.eweId === item.eweId && moveEweData?.planId === plan.id;
-                            return (
-                              <tr key={item.eweId} className={`group ${item.finalizado ? 'opacity-60 grayscale bg-slate-50/50' : ''}`}>
-                                <td className="py-4 pl-2"><div className="flex items-center gap-2"><span className={`w-2 h-2 rounded-full ${item.finalizado ? 'bg-emerald-500' : item.reprodutorId ? 'bg-indigo-500' : item.cioDetectado ? 'bg-purple-500' : 'bg-amber-400'}`}></span><div><p className="font-black text-slate-800 text-[11px] uppercase">{matriz?.nome || 'Matriz'}</p><p className="text-[9px] font-bold text-slate-400">#{matriz?.brinco || '-'}</p></div></div></td>
-                                <td className="py-4 text-center"> {!item.finalizado && !item.reprodutorId ? ( <button onClick={() => handleToggleCio(plan.id, item.eweId, !item.cioDetectado)} className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase transition-all ${item.cioDetectado ? 'bg-purple-100 text-purple-700 border border-purple-200 shadow-inner' : 'bg-slate-100 text-slate-400 hover:bg-purple-50 hover:text-purple-400 border border-transparent'}`}> {item.cioDetectado ? '✅ Cio Detectado' : '⌛ Confirmar Cio'} </button> ) : ( <span className="text-[9px] font-black text-slate-300 uppercase italic">Fase Superada</span> )} </td>
-                                <td className="py-4 text-center"> {isAssigning ? ( <div className="flex flex-col gap-1 max-w-[150px] mx-auto animate-in fade-in zoom-in-95 p-2 bg-indigo-50 rounded-xl border border-indigo-100"><select className="text-[10px] p-1.5 border rounded-lg bg-white font-bold" value={assignRamData.reprodutorId} onChange={e => setAssignRamData({...assignRamData, reprodutorId: e.target.value})}><option value="">Reprodutor...</option>{reprodutores.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}</select><input type="date" className="text-[10px] p-1.5 border rounded-lg bg-white" value={assignRamData.date} onChange={e => setAssignRamData({...assignRamData, date: e.target.value})} /><button onClick={handleSaveRam} className="bg-slate-900 text-white text-[8px] font-black py-1.5 rounded-lg uppercase tracking-widest mt-1">Salvar</button></div> ) : item.reprodutorId ? ( <div className="flex flex-col items-center"><span className="text-[10px] font-black text-slate-700 uppercase">{reprodutor?.nome || 'Macho'}</span><span className="text-[8px] font-bold text-slate-400 italic">{item.dataPrimeiraMonta ? new Date(item.dataPrimeiraMonta).toLocaleDateString() : '-'}</span></div> ) : item.cioDetectado ? ( <button onClick={() => setAssignRamData({ planId: plan.id, eweId: item.eweId, reprodutorId: '', date: new Date().toISOString().split('T')[0] })} className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 uppercase"> Escolher Macho </button> ) : ( <span className="text-[8px] font-black text-slate-200 uppercase tracking-widest">Aguardando Cio</span> )} </td>
-                                <td className="py-4 text-center"> {!item.reprodutorId ? ( <span className="text-[8px] font-black text-slate-100 uppercase tracking-widest">Bloqueado</span> ) : ( <div className="flex flex-col gap-2 items-center"><div className="flex justify-center gap-1"> {[1, 2, 3].map((cycle) => { const c = cycle as 1 | 2 | 3; const result = item.resultados[c]; const prevResult = c > 1 ? item.resultados[c-1 as 1|2] : null; const canClick = !item.finalizado && (c === 1 || prevResult === BreedingCycleResult.VAZIA); if (result !== BreedingCycleResult.PENDENTE) { return ( <div key={cycle} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${result === BreedingCycleResult.PRENHA ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600 shadow-inner'}`}> {result === BreedingCycleResult.PRENHA ? 'P' : 'V'} </div> ); } return ( <div key={cycle} className="flex gap-0.5"><button disabled={!canClick} onClick={() => handleUpdateCycle(plan.id, item.eweId, c, BreedingCycleResult.PRENHA)} className={`w-10 h-6 rounded text-[7px] font-black uppercase transition-all ${!canClick ? 'bg-slate-50 text-slate-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-100'}`}> Prenha </button><button disabled={!canClick} onClick={() => handleUpdateCycle(plan.id, item.eweId, c, BreedingCycleResult.VAZIA)} className={`w-10 h-6 rounded text-[7px] font-black uppercase transition-all ${!canClick ? 'bg-slate-50 text-slate-100' : 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-100'}`}> Vazia </button></div> ); })} </div> </div> )} </td>
-                                <td className="py-4 text-center"> {item.finalizado && item.resultados[3] === BreedingCycleResult.VAZIA ? ( <button onClick={() => handleDiscard(plan.id, item.eweId)} className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase shadow-lg shadow-rose-900/20 active:scale-95 transition-all"> ⚠️ Descartar </button> ) : item.finalizado ? ( <span className="text-[10px] font-black text-emerald-600 uppercase">Gestando 🚜</span> ) : item.reprodutorId ? ( <span className="text-[10px] font-black text-indigo-600 uppercase animate-pulse">Em Monta</span> ) : ( <span className="text-[10px] font-black text-slate-300 uppercase">Observação</span> )} </td>
-                                <td className="py-4 pr-2 text-right"> <div className="flex justify-end gap-1.5"> {isMoving ? ( <div className="flex flex-col gap-1 p-2 bg-slate-100 rounded-xl animate-in zoom-in-95"><p className="text-[7px] font-black uppercase text-slate-500 mb-1">Mover para:</p><div className="flex flex-wrap gap-1 max-w-[150px]"> {plans.filter(p => p.id !== plan.id).map(p => ( <button key={p.id} onClick={() => handleMoveEwe(p.id)} className="px-2 py-1 bg-white border border-slate-200 rounded text-[7px] font-black uppercase hover:bg-indigo-50 hover:text-indigo-600 transition-colors"> {p.nome} </button> ))} </div><button onClick={() => setMoveEweData(null)} className="text-[7px] font-black text-rose-500 uppercase mt-1">Cancelar</button></div> ) : ( <> <button onClick={() => setMoveEweData({ planId: plan.id, eweId: item.eweId })} className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors" title="Mover para outro lote"> 🚚 </button> <button onClick={() => handleRemoveEweFromPlan(plan.id, item.eweId)} className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-colors" title="Remover do lote e tornar disponível" > ❌ </button> </> )} </div> </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                      {isEmpty && <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 mt-4"><p className="text-[10px] font-black text-slate-300 uppercase">Este lote está vazio. Use o botão da lixeira acima para removê-lo.</p></div>}
-                    </div>
-                  </div>
-                )}
               </div>
-            );
-          })}
+              <button onClick={() => setSelectedPlanId(null)} className="w-12 h-12 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all shadow-sm">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              <div className="w-full lg:w-80 bg-slate-50 border-r border-slate-100 p-6 flex flex-col overflow-hidden">
+                <h4 className="text-[10px] font-black text-indigo-600 uppercase mb-4 tracking-widest flex justify-between items-center">
+                   Disponíveis para Monta
+                   <span className="bg-indigo-100 px-1.5 py-0.5 rounded">{availableMatrizes.length}</span>
+                </h4>
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                  {availableMatrizes.map(s => (
+                    <button 
+                      key={s.id} 
+                      onClick={() => handleAddEwe(s.id)} 
+                      className="w-full p-3 bg-white border border-slate-200 rounded-2xl flex justify-between items-center hover:border-indigo-400 hover:shadow-md transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black group-hover:bg-indigo-50 group-hover:text-indigo-600">#{s.brinco.slice(-3)}</div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-800 uppercase">{s.nome}</p>
+                          <p className="text-[8px] font-bold text-slate-400 tracking-tighter">Brinco: {s.brinco}</p>
+                        </div>
+                      </div>
+                      <span className="text-indigo-600 font-black text-lg opacity-40 group-hover:opacity-100">＋</span>
+                    </button>
+                  ))}
+                  {availableMatrizes.length === 0 && (
+                    <div className="py-10 text-center px-4">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed">Nenhuma fêmea disponível para este lote no momento.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar bg-white">
+                <div className="space-y-4">
+                  {(selectedPlan.ovelhas || []).map(o => {
+                    const ewe = sheep.find(s => s.id === o.eweId);
+                    return (
+                      <div key={o.eweId} className={`p-6 rounded-[32px] border transition-all flex flex-col md:flex-row justify-between items-center gap-8 ${
+                        o.finalizado ? 'bg-slate-50 border-slate-100 grayscale-[0.5]' : 'bg-white border-slate-200 hover:shadow-lg'
+                      }`}>
+                        <div className="flex items-center gap-5 w-56 shrink-0">
+                          <div className={`w-14 h-14 rounded-3xl flex items-center justify-center text-xl shadow-inner ${
+                            o.resultados[o.tentativas as 1|2|3] === BreedingCycleResult.PRENHA ? 'bg-emerald-100 text-emerald-600' : 
+                            o.resultados[o.tentativas as 1|2|3] === BreedingCycleResult.VAZIA ? 'bg-rose-100 text-rose-600' : 'bg-indigo-50 text-indigo-600'
+                          }`}>
+                            {o.resultados[o.tentativas as 1|2|3] === BreedingCycleResult.PRENHA ? '🤰' : '🐑'}
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-black text-slate-800 uppercase leading-none mb-1">{ewe?.nome || 'Matriz'}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">#{ewe?.brinco || '?'}</p>
+                            <div className="mt-2 flex gap-1">
+                               <span className="text-[7px] font-black bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 uppercase tracking-tighter">CICLO: {o.tentativas}º</span>
+                               {o.finalizado && <span className="text-[7px] font-black bg-slate-900 px-1.5 py-0.5 rounded text-white uppercase tracking-tighter">CONCLUÍDO</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 grid grid-cols-3 gap-4 w-full">
+                          {[1, 2, 3].map(cycle => (
+                            <div key={cycle} className={`p-4 rounded-2xl border flex flex-col gap-2 transition-all ${
+                              o.tentativas >= cycle ? 'bg-white border-slate-200' : 'bg-slate-50 border-transparent opacity-30'
+                            }`}>
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">{cycle}º CICLO (DIA {cycle === 1 ? '17-21' : cycle === 2 ? '34-42' : '51-63'})</p>
+                              <select 
+                                disabled={o.finalizado || (cycle > 1 && o.resultados[(cycle-1) as 1|2|3] !== BreedingCycleResult.VAZIA)}
+                                value={o.resultados[cycle as 1|2|3]} 
+                                onChange={(e) => handleUpdateResult(o.eweId, cycle, e.target.value as any)}
+                                className={`w-full p-2 rounded-xl text-[10px] font-black uppercase outline-none transition-all ${
+                                  o.resultados[cycle as 1|2|3] === BreedingCycleResult.PRENHA ? 'bg-emerald-500 text-white' :
+                                  o.resultados[cycle as 1|2|3] === BreedingCycleResult.VAZIA ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                <option value={BreedingCycleResult.PENDENTE}>Diagnosticar...</option>
+                                <option value={BreedingCycleResult.PRENHA}>PRENHA ✅</option>
+                                <option value={BreedingCycleResult.VAZIA}>VAZIA ❌</option>
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="shrink-0">
+                           <button onClick={() => handleRemoveEwe(o.eweId)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all" title="Remover Matriz do Lote">🗑️</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(selectedPlan.ovelhas || []).length === 0 && (
+                    <div className="text-center py-24 bg-slate-50/50 rounded-[40px] border-2 border-dashed border-slate-100 flex flex-col items-center">
+                      <div className="text-4xl mb-4 opacity-20">📥</div>
+                      <p className="text-slate-400 font-black uppercase text-[11px] tracking-widest">Adicione matrizes vazias para começar a estação</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 shrink-0">
+               <div className="flex items-center gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-black text-emerald-600">{(selectedPlan.ovelhas || []).filter(o => o.resultados[o.tentativas as 1|2|3] === BreedingCycleResult.PRENHA).length}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase">Prenhas Confirmadas</span>
+                  </div>
+                  <div className="w-px h-8 bg-slate-200"></div>
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-black text-rose-500">{(selectedPlan.ovelhas || []).filter(o => o.finalizado && o.resultados[o.tentativas as 1|2|3] === BreedingCycleResult.VAZIA).length}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase">Falhas (Descarte)</span>
+                  </div>
+               </div>
+               
+               <div className="flex gap-3">
+                  <button onClick={() => handleDeletePlan(selectedPlan.id)} className="px-6 py-3 bg-white border border-rose-100 text-rose-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 transition-all">Excluir Lote</button>
+                  <button onClick={() => setSelectedPlanId(null)} className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95">Salvar e Sair</button>
+               </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -23,17 +23,13 @@ export enum BreedingCycleResult {
 }
 
 export interface BreedingPlanEwe {
+  id: string; // ID na tabela lote_ovelhas
+  loteId: string;
   eweId: string;
-  cioDetectado: boolean;
-  dataCio?: string;
-  reprodutorId?: string;
-  dataPrimeiraMonta?: string;
   tentativas: number;
-  resultados: {
-    1: BreedingCycleResult;
-    2: BreedingCycleResult;
-    3: BreedingCycleResult;
-  };
+  ciclo1: BreedingCycleResult;
+  ciclo2: BreedingCycleResult;
+  ciclo3: BreedingCycleResult;
   finalizado: boolean;
 }
 
@@ -43,7 +39,7 @@ export interface BreedingPlan {
   reprodutorId?: string;
   dataSincronizacao?: string;
   dataInicioMonta: string;
-  status: 'sincronizacao' | 'em_monta' | 'concluido';
+  status: 'em_monta' | 'concluido';
   ovelhas: BreedingPlanEwe[];
   created_at?: string;
 }
@@ -63,6 +59,7 @@ export interface BreedingRecord {
   dataPrevisaoParto: string;
   dataPartoReal?: string;
   status: BreedingStatus;
+  loteOrigemId?: string;
   observacoes?: string;
   created_at?: string;
 }
@@ -88,12 +85,12 @@ export enum Recorrencia {
 }
 
 export interface RecorrenciaConfig {
-  diasSemana?: number[];
-  diasMes?: number[];
-  mesesAnual?: number[]; // [0-11]
-  intervaloDiario?: number; // x em x dias
-  duracaoValor?: number | null;
-  dataInicioReferencia?: string;
+  intervalo?: number; // Ex: a cada '2' dias
+  diasSemana?: number[]; // [1, 3, 5] para Seg, Qua, Sex
+  diaMes?: number; // Dia 15
+  mesAnual?: number; // Mês 0-11
+  limiteRepeticoes?: number | null; // null = infinito (até encerrar)
+  // Fix: Added 'contagem' property to track current iteration in recurring sequences
   contagem?: number;
 }
 
@@ -172,6 +169,9 @@ export interface Manejo {
   ovelhasIds?: string[];
   grupoId?: string;
   created_at?: string;
+  // Auditoria de Gerência
+  editadoPorGerente?: boolean;
+  dataUltimaEdicao?: string;
 }
 
 export interface KnowledgeEntry {
