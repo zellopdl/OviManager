@@ -121,7 +121,6 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
         ))}
       </div>
 
-      {/* Modal Gerenciamento Lote (Mobile-Optimized) */}
       {selectedPlan && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center md:p-4 bg-slate-900/80 backdrop-blur-md">
           <div className="bg-white w-full md:max-w-6xl h-full md:h-[85vh] md:rounded-[40px] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95">
@@ -130,14 +129,12 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
               <button onClick={() => setSelectedPlanId(null)} className="w-10 h-10 md:w-12 md:h-12 bg-white border rounded-full flex items-center justify-center text-slate-400 shadow-sm transition-all shrink-0">✕</button>
             </div>
 
-            {/* Mobile Tab Switcher */}
             <div className="md:hidden flex bg-slate-100 p-1 mx-5 mt-4 rounded-2xl shrink-0">
                <button onClick={() => setActiveTabMobile('lote')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTabMobile === 'lote' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Matrizes no Lote</button>
                <button onClick={() => setActiveTabMobile('adicionar')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTabMobile === 'adicionar' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}>Adicionar (+)</button>
             </div>
             
             <div className="flex-1 flex overflow-hidden">
-               {/* Lado Esquerdo: Disponíveis (Hidden on mobile unless tab active) */}
                <div className={`w-full md:w-72 bg-slate-50 border-r p-6 overflow-y-auto custom-scrollbar ${activeTabMobile === 'adicionar' ? 'flex flex-col' : 'hidden md:flex flex-col'}`}>
                   <h4 className="text-[10px] font-black uppercase text-indigo-600 mb-4 tracking-widest flex justify-between">Vazias <span>{availableMatrizes.length}</span></h4>
                   <div className="space-y-2 pb-20 md:pb-4">
@@ -150,7 +147,6 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
                   </div>
                </div>
 
-               {/* Centro: Animais no Lote (Hidden on mobile unless tab active) */}
                <div className={`flex-1 p-4 md:p-8 overflow-y-auto custom-scrollbar bg-white ${activeTabMobile === 'lote' ? 'block' : 'hidden md:block'}`}>
                   <div className="space-y-4 pb-20 md:pb-4">
                     {(selectedPlan.ovelhas || []).map(o => {
@@ -211,7 +207,6 @@ const BreedingPlanManager: React.FC<BreedingPlanManagerProps> = ({ sheep, groups
         </div>
       )}
 
-      {/* Modal Senha Desbloqueio (Matriz Finalizada) */}
       {eweToUnlock && (
         <div className="fixed inset-0 z-[700] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
            <div className={`bg-white w-full max-w-sm rounded-[32px] p-10 shadow-2xl border-2 transition-all ${passError ? 'border-rose-500 animate-shake' : 'border-slate-100'}`}>

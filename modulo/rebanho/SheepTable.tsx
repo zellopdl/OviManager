@@ -16,7 +16,7 @@ interface SheepTableProps {
   onAnalyze: (sheep: Sheep) => void;
 }
 
-type SortField = keyof Sheep | 'grupo' | 'piquete';
+type SortField = 'nome' | 'grupo' | 'sanidade' | 'nascimento' | 'peso' | 'famacha' | 'piquete';
 type SortDirection = 'asc' | 'desc';
 
 const SheepTable: React.FC<SheepTableProps> = ({ sheep, breeds, groups, paddocks, onEdit, onDelete, onAdd, onAnalyze }) => {
@@ -24,8 +24,6 @@ const SheepTable: React.FC<SheepTableProps> = ({ sheep, breeds, groups, paddocks
   const [sortField, setSortField] = useState<SortField>('nome');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const getFamachaInfo = (val: number) => FAMACHA_OPTIONS.find(o => o.value === val);
-  const getEccInfo = (val: number) => ECC_OPTIONS.find(o => o.value === val);
   const getGroupName = (id: string) => groups.find(g => g.id === id)?.nome || 'SEM LOTE';
   const getPaddockName = (id: string) => paddocks.find(p => p.id === id)?.piquete || '-';
 
@@ -48,21 +46,28 @@ const SheepTable: React.FC<SheepTableProps> = ({ sheep, breeds, groups, paddocks
       let valA: any;
       let valB: any;
 
-      if (sortField === 'grupo') {
-        valA = getGroupName(a.grupoId);
-        valB = getGroupName(b.grupoId);
-      } else if (sortField === 'piquete') {
-        valA = getPaddockName(a.piqueteId);
-        valB = getPaddockName(b.piqueteId);
-      } else {
-        valA = a[sortField as keyof Sheep];
-        valB = b[sortField as keyof Sheep];
+      switch (sortField) {
+        case 'grupo':
+          valA = getGroupName(a.grupoId);
+          valB = getGroupName(b.grupoId);
+          break;
+        case 'piquete':
+          valA = getPaddockName(a.piqueteId);
+          valB = getPaddockName(b.piqueteId);
+          break;
+        case 'nascimento':
+          valA = new Date(a.nascimento || 0).getTime();
+          valB = new Date(b.nascimento || 0).getTime();
+          break;
+        default:
+          valA = a[sortField as keyof Sheep];
+          valB = b[sortField as keyof Sheep];
       }
 
       if (valA === undefined || valA === null) valA = '';
       if (valB === undefined || valB === null) valB = '';
 
-      if (typeof valA === 'string') {
+      if (typeof valA === 'string' && typeof valB === 'string') {
         valA = valA.toLowerCase();
         valB = valB.toLowerCase();
       }
@@ -79,14 +84,44 @@ const SheepTable: React.FC<SheepTableProps> = ({ sheep, breeds, groups, paddocks
     return 'text-rose-600 bg-rose-50 border-rose-100';
   };
 
+  const SortHeader = ({ field, label }: { field: SortField, label: string }) => {
+    const isActive = sortField === field;
+    return (
+      <th 
+        className="p-5 cursor-pointer hover:bg-slate-100 transition-colors group select-none"
+        onClick={() => handleSort(field)}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className={`transition-colors ${isActive ? 'text-slate-900 font-black' : 'text-slate-400 font-black'}`}>
+            {label}
+          </span>
+          <div className="flex flex-col text-[7px] leading-[0.8] opacity-50 group-hover:opacity-100">
+            <span className={isActive && sortDirection === 'asc' ? 'text-indigo-600 font-bold scale-125' : 'text-slate-300'}>▲</span>
+            <span className={isActive && sortDirection === 'desc' ? 'text-indigo-600 font-bold scale-125' : 'text-slate-300'}>▼</span>
+          </div>
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-           <input className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm outline-none focus:border-emerald-500 text-sm font-medium" placeholder="Buscar por nome ou brinco..." value={search} onChange={e => setSearch(e.target.value)} />
+           <input 
+              className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm outline-none focus:border-emerald-500 text-sm font-medium" 
+              placeholder="Buscar por nome ou brinco..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+           />
         </div>
-        <button onClick={onAdd} className="bg-emerald-600 text-white w-full sm:w-auto px-8 py-3.5 rounded-2xl font-black uppercase text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all">Novo Animal</button>
+        <button 
+          onClick={onAdd} 
+          className="bg-emerald-600 text-white w-full sm:w-auto px-8 py-3.5 rounded-2xl font-black uppercase text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
+        >
+          Novo Animal
+        </button>
       </div>
 
       {/* Desktop Table View */}
@@ -94,22 +129,33 @@ const SheepTable: React.FC<SheepTableProps> = ({ sheep, breeds, groups, paddocks
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b text-[9px] font-black text-slate-400 uppercase tracking-widest">
             <tr>
-              <th className="p-5 cursor-pointer" onClick={() => handleSort('nome')}>Animal {sortField==='nome'&& (sortDirection==='asc'?'↑':'↓')}</th>
-              <th className="p-5">Grupo</th>
-              <th className="p-5">Sanidade</th>
-              <th className="p-5">Idade</th>
-              <th className="p-5">Peso</th>
-              <th className="p-5">Saúde</th>
-              <th className="p-5">Local</th>
+              <SortHeader field="nome" label="Animal" />
+              <SortHeader field="grupo" label="Grupo" />
+              <SortHeader field="sanidade" label="Sanidade" />
+              <SortHeader field="nascimento" label="Idade" />
+              <SortHeader field="peso" label="Peso" />
+              <SortHeader field="famacha" label="Saúde" />
+              <SortHeader field="piquete" label="Local" />
               <th className="p-5 text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y text-xs">
             {filteredAndSorted.map(s => (
               <tr key={s.id} className="hover:bg-slate-50 transition-all group">
-                <td className="p-5"><p className="font-black uppercase text-slate-800">{s.nome}</p><p className="text-[9px] text-emerald-600 font-bold">#{s.brinco}</p></td>
-                <td className="p-5"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">{getGroupName(s.grupoId)}</span></td>
-                <td className="p-5"><span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.sanidade === Sanidade.SAUDAVEL ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{s.sanidade}</span></td>
+                <td className="p-5">
+                  <p className="font-black uppercase text-slate-800">{s.nome}</p>
+                  <p className="text-[9px] text-emerald-600 font-bold">#{s.brinco}</p>
+                </td>
+                <td className="p-5">
+                  <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[8px] font-black uppercase">
+                    {getGroupName(s.grupoId)}
+                  </span>
+                </td>
+                <td className="p-5">
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.sanidade === Sanidade.SAUDAVEL ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                    {s.sanidade}
+                  </span>
+                </td>
                 <td className="p-5 font-bold text-slate-500">{calculateAge(s.nascimento)}</td>
                 <td className="p-5 font-black text-slate-800">{s.peso}kg</td>
                 <td className="p-5">
@@ -121,18 +167,21 @@ const SheepTable: React.FC<SheepTableProps> = ({ sheep, breeds, groups, paddocks
                 <td className="p-5 font-bold text-slate-400">{getPaddockName(s.piqueteId)}</td>
                 <td className="p-5 text-right">
                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onAnalyze(s)} className="p-2 text-indigo-500 bg-indigo-50 rounded-lg">✨</button>
-                    <button onClick={() => onEdit(s)} className="p-2 text-slate-400 bg-slate-50 rounded-lg">✏️</button>
-                    <button onClick={() => onDelete(s.id)} className="p-2 text-rose-400 bg-rose-50 rounded-lg">🗑️</button>
+                    <button onClick={() => onAnalyze(s)} className="p-2 text-indigo-500 bg-indigo-50 rounded-lg" title="Análise IA">✨</button>
+                    <button onClick={() => onEdit(s)} className="p-2 text-slate-400 bg-slate-50 rounded-lg" title="Editar">✏️</button>
+                    <button onClick={() => onDelete(s.id)} className="p-2 text-rose-400 bg-rose-50 rounded-lg" title="Excluir">🗑️</button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {filteredAndSorted.length === 0 && (
+          <div className="py-20 text-center text-slate-300 font-black uppercase text-xs tracking-widest">Nenhum animal corresponde à busca</div>
+        )}
       </div>
 
-      {/* Mobile Card View - EXTREMAMENTE OTIMIZADA */}
+      {/* Mobile Card View */}
       <div className="lg:hidden grid grid-cols-1 gap-3">
         {filteredAndSorted.map(s => (
           <div key={s.id} className="bg-white p-4 rounded-[24px] border border-slate-200 shadow-sm relative overflow-hidden group active:scale-[0.98] transition-all">

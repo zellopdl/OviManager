@@ -43,11 +43,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
   };
 
   const handleLogout = async () => {
-    if (confirm("Deseja realmente sair do sistema?")) {
-      if (isSupabaseConfigured) {
-        await supabase.auth.signOut();
-      } else {
-        // Fallback para local se necessário
+    if (window.confirm("Deseja realmente sair do sistema?")) {
+      try {
+        if (isSupabaseConfigured) {
+          await supabase.auth.signOut();
+        } else {
+          // Fallback para ambientes locais sem Supabase
+          localStorage.clear();
+          window.location.reload();
+        }
+      } catch (e) {
+        console.error("Erro ao sair:", e);
         window.location.reload();
       }
     }
@@ -76,13 +82,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
           ))}
         </nav>
 
-        {/* Footer Sidebar - Desktop */}
+        {/* Footer Sidebar - Desktop - Botão Sair Prominente */}
         <div className="p-3 border-t border-slate-800 space-y-1">
-          <button onClick={handleLogout} className={`w-full flex items-center rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all ${isDesktopCollapsed ? 'justify-center py-3' : 'gap-3 px-3 py-2.5'}`}>
-            <span className="text-lg">🚪</span>
-            {!isDesktopCollapsed && <span className="font-bold text-[10px] uppercase tracking-widest">Sair</span>}
+          <button 
+            onClick={handleLogout} 
+            className={`w-full flex items-center rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all group ${isDesktopCollapsed ? 'justify-center py-3' : 'gap-3 px-3 py-2.5'}`}
+            title="Sair do Sistema"
+          >
+            <span className="text-lg transition-transform group-hover:scale-110">🚪</span>
+            {!isDesktopCollapsed && <span className="font-black text-[10px] uppercase tracking-widest">Sair do Sistema</span>}
           </button>
-          <button onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)} className="w-full py-2 text-slate-500 hover:text-white text-xs">
+          
+          <button onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)} className="w-full py-2 text-slate-500 hover:text-white text-[9px] font-black uppercase tracking-tighter">
             {isDesktopCollapsed ? '➡️' : '⬅️ Recolher'}
           </button>
         </div>
@@ -139,13 +150,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
                  ))}
               </div>
 
-              {/* Botão Sair Mobile */}
+              {/* Botão Sair Mobile - Redesenhado para ser impossível não ver */}
               <div className="pt-4 border-t border-slate-100 mb-6">
                 <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-3 p-5 bg-rose-50 text-rose-600 rounded-[24px] font-black uppercase text-xs tracking-widest active:scale-95 transition-all"
+                  className="w-full flex items-center justify-center gap-4 p-5 bg-rose-50 text-rose-600 rounded-[24px] font-black uppercase text-xs tracking-widest active:scale-95 transition-all shadow-sm border border-rose-100"
                 >
-                  <span className="text-xl">🚪</span>
+                  <span className="text-2xl">🚪</span>
                   Sair do Sistema
                 </button>
               </div>
