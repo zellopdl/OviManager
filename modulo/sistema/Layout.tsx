@@ -48,7 +48,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
         if (isSupabaseConfigured) {
           await supabase.auth.signOut();
         } else {
-          // Fallback para ambientes locais sem Supabase
           localStorage.clear();
           window.location.reload();
         }
@@ -68,7 +67,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
           {!isDesktopCollapsed && <h1 className="text-lg font-black tracking-tight">OviManager</h1>}
         </div>
         
-        <nav className="flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 p-3 space-y-4 overflow-y-auto custom-scrollbar dark-scrollbar">
           {['Principal', 'Operacional', 'Suporte', 'Cadastros', 'Sistema'].map(cat => (
             <div key={cat} className="space-y-1">
               {!isDesktopCollapsed && <h3 className="px-3 text-[9px] uppercase tracking-widest text-slate-500 font-black mb-1">{cat}</h3>}
@@ -82,7 +81,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
           ))}
         </nav>
 
-        {/* Footer Sidebar - Desktop - Botão Sair Prominente */}
         <div className="p-3 border-t border-slate-800 space-y-1">
           <button 
             onClick={handleLogout} 
@@ -99,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content Area - O Elevador Central */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
         <header className="bg-white border-b border-slate-200 h-14 md:h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 shadow-sm">
           <div className="flex items-center gap-2">
@@ -113,15 +111,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
           </div>
         </header>
 
+        {/* Scroll Container Principal com padding extra para Mobile Nav */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-50/50">
-          <div className="max-w-7xl mx-auto p-3 md:p-8 pb-24 md:pb-12">
+          <div className="max-w-7xl mx-auto p-3 md:p-8 pb-32 md:pb-12 view-transition">
             {children}
           </div>
         </main>
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 flex justify-around items-center h-16 pb-safe z-50 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] rounded-t-[20px]">
+      {/* Mobile Bottom Nav - Fixo */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 flex justify-around items-center h-16 pb-safe z-50 shadow-[0_-4px_15px_rgba(0,0,0,0.05)] rounded-t-[24px]">
         {bottomTabs.map((item) => (
           <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all ${activeTab === item.id ? 'text-emerald-600' : 'text-slate-400'}`}>
             <span className={`text-xl ${activeTab === item.id ? 'scale-110' : ''}`}>{item.icon}</span>
@@ -134,23 +133,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, head
         </button>
       </nav>
 
-      {/* Full Mobile Menu Overlay */}
+      {/* Menu Mobile Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-[100] animate-in fade-in duration-200">
            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
-           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300">
+           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300 custom-scrollbar">
               <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
               
               <div className="grid grid-cols-2 gap-3 mb-8">
                  {menuItems.map(item => (
-                    <button key={item.id} onClick={() => handleTabClick(item.id)} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === item.id ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                    <button key={item.id} onClick={() => handleTabClick(item.id)} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${activeTab === item.id ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
                        <span className="text-lg">{item.icon}</span>
                        <span className="font-bold text-[10px] uppercase">{item.label}</span>
                     </button>
                  ))}
               </div>
 
-              {/* Botão Sair Mobile - Redesenhado para ser impossível não ver */}
               <div className="pt-4 border-t border-slate-100 mb-6">
                 <button 
                   onClick={handleLogout}

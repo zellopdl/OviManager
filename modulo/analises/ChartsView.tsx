@@ -76,7 +76,7 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
   }, [sheep]);
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-10 pb-20 overflow-visible">
       <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex justify-between items-center">
         <div>
           <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Painel Analítico</h2>
@@ -88,7 +88,7 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
       <div className="space-y-6">
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Evolução e Performance</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-8 rounded-[40px] border shadow-sm flex flex-col h-[450px]">
+          <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-sm flex flex-col h-[400px] md:h-[450px]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping"></span> Curva de Engorda vs Meta
@@ -129,34 +129,36 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[40px] border shadow-sm flex flex-col h-[450px]">
+          <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-sm flex flex-col h-[400px] md:h-[450px]">
             <h3 className="text-[10px] font-black text-slate-400 uppercase mb-6 tracking-widest">Distribuição Famacha (Anemia)</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={famachaData}>
-                <defs>
-                  <linearGradient id="colorFam" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="grau" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight:'bold'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9}} />
-                <Tooltip />
-                <Area type="monotone" dataKey="total" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorFam)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={famachaData}>
+                  <defs>
+                    <linearGradient id="colorFam" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="grau" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight:'bold'}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9}} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="total" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorFam)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* SEÇÃO 2: CENSO E GRUPOS (ATUALIZADA) */}
+      {/* SEÇÃO 2: CENSO E GRUPOS */}
       <div className="space-y-6">
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Censo e População Ativa</h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* GRÁFICO DE BARRAS POR GRUPO E SEXO */}
-          <div className="lg:col-span-2 bg-white p-8 rounded-[40px] border shadow-sm h-[400px] flex flex-col">
+          <div className="lg:col-span-2 bg-white p-6 md:p-8 rounded-[40px] border shadow-sm h-[400px] flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ativos por Grupo e Sexo</h4>
               <div className="flex gap-4">
@@ -176,7 +178,7 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
                 <BarChart
                   data={activeByGroupData}
                   layout="vertical"
-                  margin={{ top: 5, right: 80, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 80, left: 10, bottom: 5 }}
                   barSize={24}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
@@ -186,8 +188,8 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
                     type="category" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 10, fontWeight: '900', fill: '#1e293b' }}
-                    width={100}
+                    tick={{ fontSize: 9, fontWeight: '900', fill: '#1e293b' }}
+                    width={90}
                   />
                   <Tooltip 
                     cursor={{ fill: '#f8fafc' }}
@@ -218,7 +220,7 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
                         const { x, y, width, value, index } = props;
                         const data = activeByGroupData[index];
                         return (
-                          <text x={x + width + 10} y={y + 16} fill="#64748b" fontSize={10} fontWeight="900" textAnchor="start">
+                          <text x={x + width + 10} y={y + 16} fill="#64748b" fontSize={9} fontWeight="900" textAnchor="start">
                             {data.total} ({data.percent}%)
                           </text>
                         );
@@ -241,38 +243,42 @@ const ChartsView: React.FC<ChartsViewProps> = ({ sheep, groups }) => {
       </div>
 
       {/* SEÇÃO 3: SAÚDE E ECC */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-20">
         <div className="bg-white p-6 rounded-[32px] border shadow-sm h-[300px]">
            <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4">Escore Corporal (ECC)</h4>
-           <ResponsiveContainer width="100%" height="100%">
-             <LineChart data={eccData}>
-               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-               <XAxis dataKey="escore" axisLine={false} tickLine={false} tick={{fontSize: 9}} />
-               <Tooltip />
-               <Line type="step" dataKey="total" stroke="#6366f1" strokeWidth={3} dot={{r:4}} />
-             </LineChart>
-           </ResponsiveContainer>
+           <div className="h-full">
+             <ResponsiveContainer width="100%" height="80%">
+               <LineChart data={eccData}>
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                 <XAxis dataKey="escore" axisLine={false} tickLine={false} tick={{fontSize: 9}} />
+                 <Tooltip />
+                 <Line type="step" dataKey="total" stroke="#6366f1" strokeWidth={3} dot={{r:4}} />
+               </LineChart>
+             </ResponsiveContainer>
+           </div>
         </div>
         
         <div className="bg-white p-6 rounded-[32px] border shadow-sm h-[300px]">
            <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4">Integridade de Saúde</h4>
-           <ResponsiveContainer width="100%" height="100%">
-             <PieChart>
-               <Pie 
-                 data={[
-                   {n:'Saudável', v:sheep.filter(s=>s.sanidade===Sanidade.SAUDAVEL).length},
-                   {n:'Enfermaria', v:sheep.filter(s=>s.sanidade===Sanidade.ENFERMARIA).length}
-                 ]} 
-                 innerRadius={60} 
-                 outerRadius={80} 
-                 paddingAngle={5} 
-                 dataKey="v"
-               >
-                 <Cell fill="#10b981" /><Cell fill="#f43f5e" />
-               </Pie>
-               <Tooltip />
-             </PieChart>
-           </ResponsiveContainer>
+           <div className="h-full">
+             <ResponsiveContainer width="100%" height="80%">
+               <PieChart>
+                 <Pie 
+                   data={[
+                     {n:'Saudável', v:sheep.filter(s=>s.sanidade===Sanidade.SAUDAVEL).length},
+                     {n:'Enfermaria', v:sheep.filter(s=>s.sanidade===Sanidade.ENFERMARIA).length}
+                   ]} 
+                   innerRadius={60} 
+                   outerRadius={80} 
+                   paddingAngle={5} 
+                   dataKey="v"
+                 >
+                   <Cell fill="#10b981" /><Cell fill="#f43f5e" />
+                 </Pie>
+                 <Tooltip />
+               </PieChart>
+             </ResponsiveContainer>
+           </div>
         </div>
 
         <div className="bg-slate-50 p-6 rounded-[32px] border border-dashed border-slate-200 flex flex-col justify-center text-center">
